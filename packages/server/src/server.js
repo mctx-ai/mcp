@@ -18,6 +18,7 @@ import {
   canonicalizePath,
   sanitizeInput,
 } from "./security.js";
+import { createAsk } from "./sampling.js";
 
 /**
  * HTTP Security Headers
@@ -143,10 +144,9 @@ export function createServer(options = {}) {
   const resources = new Map();
   const prompts = new Map();
 
-  // Client capabilities (set during initialization, not implemented yet)
-  // NOTE: In HTTP/stateless mode, sampling requires bidirectional communication
-  // which isn't available. This would work in WebSocket/SSE transport.
-  // const _clientCapabilities = { sampling: false };
+  // Client capabilities stored during initialization.
+  // Used to determine whether to provide an ask() function to handlers.
+  let clientCapabilities = {};
 
   /**
    * Register a tool
@@ -221,9 +221,10 @@ export function createServer(options = {}) {
    * Handle tools/call request
    * @param {Object} params - Request params
    * @param {Object} [meta] - Request metadata (_meta field)
+   * @param {string|null} [sessionId] - MCP session ID from request header
    * @returns {Promise<Object>} Tool result
    */
-  async function handleToolsCall(params, meta = {}) {
+  async function handleToolsCall(params, meta = {}, sessionId = null) {
     const { name, arguments: args } = params;
 
     if (!name) {
@@ -244,11 +245,8 @@ export function createServer(options = {}) {
     const sanitizedArgs = sanitizeInput(args);
 
     try {
-      // Create ask function for sampling support
-      // NOTE: In stateless HTTP mode, sendRequest callback isn't available.
-      // Sampling requires bidirectional communication (WebSocket/SSE).
-      // For now, ask is null in HTTP mode.
-      const ask = null; // TODO: Enable when streaming transport is added
+      // Create ask function for sampling support when client advertises capability
+      const ask = createAsk(buildSendRequest(sessionId), clientCapabilities);
 
       // Check if handler is a generator function (robust against minification)
       function isGeneratorFunction(fn) {
@@ -422,9 +420,10 @@ export function createServer(options = {}) {
   /**
    * Handle resources/read request
    * @param {Object} params - Request params
+   * @param {string|null} [sessionId] - MCP session ID from request header
    * @returns {Promise<Object>} Resource content
    */
-  async function handleResourcesRead(params) {
+  async function handleResourcesRead(params, sessionId = null) {
     const { uri } = params;
 
     if (!uri) {
@@ -472,8 +471,8 @@ export function createServer(options = {}) {
     }
 
     try {
-      // Create ask function (null in HTTP mode)
-      const ask = null;
+      // Create ask function for sampling support when client advertises capability
+      const ask = createAsk(buildSendRequest(sessionId), clientCapabilities);
 
       // Sanitize extracted params to prevent prototype pollution
       const sanitizedParams = sanitizeInput(extractedParams);
@@ -560,9 +559,10 @@ export function createServer(options = {}) {
   /**
    * Handle prompts/get request
    * @param {Object} params - Request params
+   * @param {string|null} [sessionId] - MCP session ID from request header
    * @returns {Promise<Object>} Prompt messages
    */
-  async function handlePromptsGet(params) {
+  async function handlePromptsGet(params, sessionId = null) {
     const { name, arguments: args } = params;
 
     if (!name) {
@@ -575,8 +575,8 @@ export function createServer(options = {}) {
     }
 
     try {
-      // Create ask function (null in HTTP mode)
-      const ask = null;
+      // Create ask function for sampling support when client advertises capability
+      const ask = createAsk(buildSendRequest(sessionId), clientCapabilities);
 
       // Sanitize arguments to prevent prototype pollution
       const sanitizedArgs = sanitizeInput(args || {});
@@ -684,10 +684,13 @@ export function createServer(options = {}) {
   /**
    * Handle initialize request
    * Auto-detects capabilities from registered tools/resources/prompts
-   * @param {Object} _params - Initialize params (clientInfo, etc.)
+   * @param {Object} params - Initialize params (clientInfo, capabilities, etc.)
    * @returns {Object} Server capabilities and info
    */
-  function handleInitialize(_params) {
+  function handleInitialize(params) {
+    // Store client capabilities for use during handler dispatch
+    clientCapabilities = (params && params.capabilities) || {};
+
     // Build capabilities object by detecting what's registered
     const capabilities = {};
 
@@ -712,6 +715,10 @@ export function createServer(options = {}) {
     // Always include logging capability
     capabilities.logging = {};
 
+    // Advertise sampling capability — the server supports LLM-in-the-loop
+    // via the ask() function if the client also supports sampling
+    capabilities.sampling = {};
+
     // Build response
     const response = {
       protocolVersion: "2025-11-25",
@@ -731,11 +738,48 @@ export function createServer(options = {}) {
   }
 
   /**
+   * Build a sendRequest callback for LLM sampling.
+   * Posts a JSON-RPC 2.0 request to /_mctx/sampling and returns the result.
+   *
+   * @param {string|null} sessionId - MCP session ID to include in the request header
+   * @returns {Function} async (method, params) => result
+   */
+  function buildSendRequest(sessionId) {
+    let requestCounter = 0;
+
+    return async function sendRequest(method, params) {
+      const id = ++requestCounter;
+
+      const headers = { "Content-Type": "application/json" };
+      if (sessionId) {
+        headers["Mcp-Session-Id"] = sessionId;
+      }
+
+      const response = await globalThis.fetch("/_mctx/sampling", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
+      });
+
+      const data = await response.json();
+
+      if (data.error) {
+        const err = new Error(data.error.message || "Sampling request failed");
+        err.code = data.error.code;
+        throw err;
+      }
+
+      return data.result;
+    };
+  }
+
+  /**
    * Route JSON-RPC request to appropriate handler
    * @param {Object} request - JSON-RPC request
+   * @param {string|null} sessionId - MCP session ID from request header
    * @returns {Promise<Object>} Response result
    */
-  async function route(request) {
+  async function route(request, sessionId) {
     const { method, params, _meta } = request;
 
     switch (method) {
@@ -754,13 +798,13 @@ export function createServer(options = {}) {
         return handleToolsList(params);
 
       case "tools/call":
-        return await handleToolsCall(params, _meta);
+        return await handleToolsCall(params, _meta, sessionId);
 
       case "resources/list":
         return handleResourcesList(params);
 
       case "resources/read":
-        return await handleResourcesRead(params);
+        return await handleResourcesRead(params, sessionId);
 
       case "resources/templates/list":
         return handleResourceTemplatesList(params);
@@ -769,7 +813,7 @@ export function createServer(options = {}) {
         return handlePromptsList(params);
 
       case "prompts/get":
-        return await handlePromptsGet(params);
+        return await handlePromptsGet(params, sessionId);
 
       case "notifications/cancelled":
         // Silent acknowledgment - no response for notifications
@@ -814,6 +858,9 @@ export function createServer(options = {}) {
         },
       );
     }
+
+    // Extract session ID from request header for sampling back-channel
+    const sessionId = request.headers.get("Mcp-Session-Id") || null;
 
     let rpcRequest;
     let rawBody;
@@ -865,7 +912,7 @@ export function createServer(options = {}) {
 
     try {
       // Route request
-      const result = await route(rpcRequest);
+      const result = await route(rpcRequest, sessionId);
 
       // Flush log buffer
       // NOTE: In HTTP mode, logs are buffered but can't be sent as notifications

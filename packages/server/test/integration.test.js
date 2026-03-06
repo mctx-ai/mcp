@@ -53,7 +53,7 @@ describe("full server integration", () => {
       id: 0,
       method: "initialize",
       params: {
-        protocolVersion: "2024-11-05",
+        protocolVersion: "2025-11-25",
         capabilities: {},
         clientInfo: { name: "test-client", version: "1.0" },
       },
@@ -62,7 +62,7 @@ describe("full server integration", () => {
     const initResponse = await app.fetch(initRequest);
     const initData = await initResponse.json();
 
-    expect(initData.result.protocolVersion).toBe("2024-11-05");
+    expect(initData.result.protocolVersion).toBe("2025-11-25");
     expect(initData.result.capabilities.tools).toBeDefined();
     expect(initData.result.capabilities.resources).toBeDefined();
     expect(initData.result.capabilities.prompts).toBeDefined();

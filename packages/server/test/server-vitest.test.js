@@ -1010,7 +1010,7 @@ describe("initialize", () => {
       id: 1,
       method: "initialize",
       params: {
-        protocolVersion: "2024-11-05",
+        protocolVersion: "2025-11-25",
         capabilities: {},
         clientInfo: {
           name: "test-client",
@@ -1024,7 +1024,7 @@ describe("initialize", () => {
 
     expect(data.jsonrpc).toBe("2.0");
     expect(data.id).toBe(1);
-    expect(data.result.protocolVersion).toBe("2024-11-05");
+    expect(data.result.protocolVersion).toBe("2025-11-25");
     expect(data.result.capabilities).toBeDefined();
     expect(data.result.serverInfo).toBeDefined();
     expect(data.result.serverInfo.name).toBe("@mctx-ai/mcp-server");

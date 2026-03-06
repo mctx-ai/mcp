@@ -13,19 +13,5 @@ jobs:
     timeout-minutes: 5
     if: github.actor == 'dependabot[bot]'
     steps:
-      - name: Fetch Dependabot metadata
-        id: metadata
-        uses: dependabot/fetch-metadata@21025c705c08248db411dc16f3619e6b5f9ea21a # v2.5.0
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Auto-merge Dependabot PR
-        if: |
-          steps.metadata.outputs.package-ecosystem == 'github_actions' ||
-          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
-          (steps.metadata.outputs.update-type == 'version-update:semver-minor' &&
-           steps.metadata.outputs.dependency-type == 'direct:development')
-        env:
-          PR_URL: ${{ github.server_url }}/${{ github.repository }}/pull/${{ github.event.pull_request.number }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh pr merge --auto --squash "$PR_URL"
+        uses: mctx-ai/action-dependabot-auto-merge@7417dfeb527b169f2cede521e00ec7f0f4522051 # v1.0.0

@@ -721,7 +721,7 @@ export function createServer(options = {}) {
 
     // Build response
     const response = {
-      protocolVersion: "2024-11-05",
+      protocolVersion: "2025-11-25",
       capabilities,
       serverInfo: {
         name: "@mctx-ai/mcp-server",

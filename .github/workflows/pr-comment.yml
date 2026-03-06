@@ -12,23 +12,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Generate app token
-        id: app-token
-        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1.12.0
+      - name: Post PR comment
+        uses: mctx-ai/action-pr-comment@bf211dad1398d1d0b3f5036b8c147ad0d2c671f7 # v1.0.0
         with:
           app-id: ${{ secrets.MCTX_BOT_APP_ID }}
           private-key: ${{ secrets.MCTX_BOT_PRIVATE_KEY }}
-
-      - name: Post PR comment
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          COMMENT_BODY: |
+          body: |
             ## Squash Merge Workflow
 
             This repo uses **squash merging**. Each PR becomes a single commit on `main`.
 
-            **Your PR title becomes the commit subject line.** Keep it under 72 characters and follow [Conventional Commits](https://www.conventionalcommits.org) format:
+            **Your PR title becomes the commit subject line.** Follow [Conventional Commits](https://www.conventionalcommits.org) format:
 
             ```
             type: short description
@@ -46,4 +40,3 @@ jobs:
             | `BREAKING CHANGE` or `feat!:`, `fix!:`, etc. | Major (**X**.0.0) |
 
             > Note: commit types like `chore:` and `docs:` do **not** trigger a release in this repo.
-        run: gh pr comment "$PR_URL" --body "$COMMENT_BODY"

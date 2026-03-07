@@ -11,11 +11,11 @@
           { "type": "perf", "release": "patch" },
           { "type": "revert", "release": "patch" },
           { "type": "chore", "release": false },
-          { "type": "docs", "release": false },
+          { "type": "docs", "release": "patch" },
           { "type": "ci", "release": false },
           { "type": "test", "release": false },
           { "type": "refactor", "release": false },
-          { "type": "style", "release": false },
+          { "type": "style", "release": "patch" },
           { "type": "build", "release": false }
         ]
       }

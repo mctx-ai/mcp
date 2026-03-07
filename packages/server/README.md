@@ -183,7 +183,7 @@ app.tool("migrate", migrate);
 import { PROGRESS_DEFAULTS } from "@mctx-ai/mcp-server";
 
 console.log(PROGRESS_DEFAULTS.maxExecutionTime); // 60000
-console.log(PROGRESS_DEFAULTS.maxYields);        // 10000
+console.log(PROGRESS_DEFAULTS.maxYields); // 10000
 ```
 
 ### Structured Logging

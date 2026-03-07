@@ -37,16 +37,16 @@ npx mctx-dev <entry-file> [options]
 
 **Options:**
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--port <number>` | Port to listen on | `3000` |
-| `-h, --help` | Show help message | |
+| Flag              | Description       | Default |
+| ----------------- | ----------------- | ------- |
+| `--port <number>` | Port to listen on | `3000`  |
+| `-h, --help`      | Show help message |         |
 
 **Environment Variables:**
 
-| Variable | Description |
-|----------|-------------|
-| `PORT` | Port to listen on (overridden by `--port`) |
+| Variable       | Description                                                                                                                                                                                               |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`         | Port to listen on (overridden by `--port`)                                                                                                                                                                |
 | `MCTX_VERBOSE` | Set to `true` to pretty-print full JSON request and response bodies to stdout for every non-handshake MCP method call. Default (unset): compact one-line logs showing direction, status, and timing only. |
 
 **Examples:**

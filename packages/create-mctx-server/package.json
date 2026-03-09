@@ -1,6 +1,6 @@
 {
   "name": "create-mctx-server",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "description": "Create a new mctx MCP server project",
   "type": "module",
   "bin": {

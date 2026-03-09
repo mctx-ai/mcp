@@ -1,6 +1,6 @@
 {
   "name": "@mctx-ai/mcp-dev",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "description": "Local development server for @mctx-ai/mcp-server with hot reload",
   "type": "module",
   "main": "./src/cli.js",
@@ -14,7 +14,7 @@
     "src"
   ],
   "scripts": {
-    "test": "node --test",
+    "test": "node --test --test-force-exit",
     "lint": "echo 'Linting not configured yet'"
   },
   "keywords": [
@@ -35,11 +35,14 @@
     "url": "https://github.com/mctx-ai/mcp-server/issues"
   },
   "homepage": "https://docs.mctx.ai",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "publishConfig": {
     "access": "public",
     "provenance": true
   },
   "peerDependencies": {
-    "@mctx-ai/mcp-server": "*"
+    "@mctx-ai/mcp-server": "^1.0.0"
   }
 }

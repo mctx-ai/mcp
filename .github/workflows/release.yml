@@ -3,6 +3,7 @@ name: Release
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: release
@@ -50,9 +51,22 @@ jobs:
       - name: Upgrade npm for OIDC support
         run: npm install -g npm@latest
       - name: Release
+        if: github.event_name == 'push'
         run: npm run release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish @mctx-ai/mcp-server
+        if: github.event_name == 'workflow_dispatch'
+        run: npm publish --provenance --access public
+        working-directory: packages/server
+      - name: Publish @mctx-ai/mcp-dev
+        if: github.event_name == 'workflow_dispatch'
+        run: npm publish --provenance --access public
+        working-directory: packages/dev
+      - name: Publish create-mctx-server
+        if: github.event_name == 'workflow_dispatch'
+        run: npm publish --provenance --access public
+        working-directory: packages/create-mctx-server
 
   post-publish-check:
     needs: release

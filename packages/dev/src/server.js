@@ -9,6 +9,7 @@
  */
 
 import { createServer } from "http";
+import { getLogBuffer, clearLogBuffer } from "@mctx-ai/mcp-server";
 import { watch } from "./watcher.js";
 
 // ANSI color codes for logging
@@ -65,6 +66,23 @@ function formatMethod(rpcRequest) {
   // For prompts/get, show prompt name
   if (method === "prompts/get" && params?.name) {
     return `${method} (${params.name})`;
+  }
+
+  // For completion/complete, show ref type and argument name
+  if (method === "completion/complete") {
+    const refType = params?.ref?.type;
+    const argName = params?.argument?.name;
+    if (refType && argName) {
+      return `${method} (${refType}, ${argName})`;
+    }
+    if (refType) {
+      return `${method} (${refType})`;
+    }
+  }
+
+  // For logging/setLevel, show the requested level
+  if (method === "logging/setLevel" && params?.level) {
+    return `${method} (${params.level})`;
   }
 
   return method;
@@ -194,6 +212,41 @@ export async function startDevServer(entryUrl, port) {
 
   // Create HTTP server
   const server = createServer(async (req, res) => {
+    // Handle /_mctx/sampling back-channel: sampling is not supported in dev mode.
+    // Return a JSON-RPC error response so ask() fails with a clear message rather
+    // than a network error.
+    if (req.url === "/_mctx/sampling") {
+      let samplingBody = "";
+      req.on("data", (chunk) => {
+        samplingBody += chunk.toString();
+      });
+      req.on("end", () => {
+        let samplingId = null;
+        try {
+          const parsed = JSON.parse(samplingBody);
+          samplingId = parsed.id || null;
+        } catch {
+          // ignore parse errors — we still send a valid error response
+        }
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            error: {
+              code: -32601,
+              message: "Sampling is not supported in dev mode — ask() will return null",
+            },
+            id: samplingId,
+          }),
+        );
+        logFramework(
+          "Sampling request received — sampling is not supported in dev mode",
+          colors.yellow,
+        );
+      });
+      return;
+    }
+
     // Fix #2: If app failed to load initially, return error
     if (!app) {
       res.writeHead(503, { "Content-Type": "application/json" });
@@ -286,6 +339,23 @@ export async function startDevServer(entryUrl, port) {
         return;
       }
 
+      // Validate JSON-RPC method field before dispatching
+      if (!rpcRequest.method || typeof rpcRequest.method !== "string") {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            error: {
+              code: -32600,
+              message: "Invalid Request - Missing or invalid method",
+            },
+            id: rpcRequest.id || null,
+          }),
+        );
+        log(`${colors.red}✗${colors.reset} Invalid Request - missing method`, colors.red);
+        return;
+      }
+
       // Log incoming request
       const methodDisplay = formatMethod(rpcRequest);
       log(`${colors.cyan}→${colors.reset} ${methodDisplay}`, colors.dim);
@@ -315,6 +385,28 @@ export async function startDevServer(entryUrl, port) {
         // Log response
         const statusColor = statusCode >= 200 && statusCode < 300 ? colors.green : colors.red;
         log(`${statusColor}←${colors.reset} ${statusCode} (${elapsed}ms)`, colors.dim);
+
+        // Surface buffered log entries from handler code to dev console
+        const bufferedLogs = getLogBuffer();
+        clearLogBuffer();
+        if (bufferedLogs.length > 0) {
+          for (const entry of bufferedLogs) {
+            const levelColor =
+              entry.level === "error" ||
+              entry.level === "critical" ||
+              entry.level === "alert" ||
+              entry.level === "emergency"
+                ? colors.red
+                : entry.level === "warning"
+                  ? colors.yellow
+                  : colors.dim;
+            const dataStr =
+              typeof entry.data === "string" ? entry.data : JSON.stringify(entry.data);
+            console.log(
+              `${colors.gray}[${timestamp()}]${colors.reset} ${levelColor}[log:${entry.level}]${colors.reset} ${dataStr}`,
+            );
+          }
+        }
 
         // Verbose logging: log full response body (skip initialize/initialized)
         if (

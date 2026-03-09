@@ -15,4 +15,4 @@ export { T, buildInputSchema } from "./types.js";
 // Advanced features
 export { conversation } from "./conversation.js";
 export { createProgress, PROGRESS_DEFAULTS } from "./progress.js";
-export { log } from "./log.js";
+export { log, getLogBuffer, clearLogBuffer } from "./log.js";

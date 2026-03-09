@@ -104,8 +104,9 @@ export function watch(filePath, onChange) {
   // Watch each directory
   for (const { path, recursive } of watchDirs) {
     const watcher = fsWatch(path, { recursive }, (eventType, changedFile) => {
-      // Only watch .js files
-      if (changedFile && !changedFile.endsWith(".js")) {
+      // Only watch .js, .mjs, .cjs, and .json files
+      const watchedExtensions = [".js", ".mjs", ".cjs", ".json"];
+      if (changedFile && !watchedExtensions.some((ext) => changedFile.endsWith(ext))) {
         return;
       }
 

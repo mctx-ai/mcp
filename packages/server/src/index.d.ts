@@ -205,10 +205,7 @@ export type GeneratorToolHandler = {
  * @returns Resource content
  */
 export type ResourceHandler = {
-  (
-    params: Record<string, string>,
-    ask?: AskFunction | null,
-  ): any | Promise<any>;
+  (params: Record<string, string>, ask?: AskFunction | null): any | Promise<any>;
   /** Resource name for display */
   name?: string;
   /** Resource description */
@@ -229,11 +226,7 @@ export type PromptHandler = {
   (
     args: Record<string, any>,
     ask?: AskFunction | null,
-  ):
-    | string
-    | ConversationResult
-    | Message[]
-    | Promise<string | ConversationResult | Message[]>;
+  ): string | ConversationResult | Message[] | Promise<string | ConversationResult | Message[]>;
   /** Prompt description */
   description?: string;
   /** Input schema definition using T types */
@@ -688,6 +681,49 @@ export type LogLevel =
   | "critical"
   | "alert"
   | "emergency";
+
+/**
+ * A buffered log notification object.
+ * Produced by the log methods and stored until the server flushes them.
+ */
+export interface LogNotification {
+  /** Always "log" */
+  type: "log";
+  /** RFC 5424 severity level */
+  level: LogLevel;
+  /** Log data (any JSON-serializable value) */
+  data: any;
+}
+
+/**
+ * Returns a copy of the current log buffer.
+ * The server uses this to retrieve buffered log notifications before sending
+ * them to MCP clients.
+ *
+ * @returns Array of log notification objects
+ *
+ * @example
+ * ```typescript
+ * import { getLogBuffer } from '@mctx-ai/mcp-server';
+ *
+ * const entries = getLogBuffer();
+ * // => [{ type: 'log', level: 'info', data: 'Server started' }, ...]
+ * ```
+ */
+export function getLogBuffer(): LogNotification[];
+
+/**
+ * Clears the log buffer.
+ * The server calls this after flushing buffered notifications to clients.
+ *
+ * @example
+ * ```typescript
+ * import { clearLogBuffer } from '@mctx-ai/mcp-server';
+ *
+ * clearLogBuffer(); // Buffer is now empty
+ * ```
+ */
+export function clearLogBuffer(): void;
 
 /**
  * Log object with methods for each severity level.

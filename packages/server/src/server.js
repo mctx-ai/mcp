@@ -9,7 +9,7 @@ import { buildInputSchema } from "./types.js";
 import { matchUri, isTemplate } from "./uri.js";
 import { PROGRESS_DEFAULTS } from "./progress.js";
 import { generateCompletions } from "./completion.js";
-import { getLogBuffer, clearLogBuffer, setLogLevel } from "./log.js";
+import { setLogLevel } from "./log.js";
 import {
   sanitizeError as securitySanitizeError,
   validateRequestSize,
@@ -916,15 +916,11 @@ export function createServer(options = {}) {
       // Route request
       const result = await route(rpcRequest, sessionId);
 
-      // Flush log buffer
-      // NOTE: In HTTP mode, logs are buffered but can't be sent as notifications
-      // mid-request. In a streaming transport (WebSocket/SSE), these would be
-      // sent as notifications/message events during handler execution.
-      getLogBuffer();
-      clearLogBuffer();
-
-      // TODO: When streaming transport is added, send buffered logs as notifications
-      // For now, just clear them since we can't send them in stateless HTTP mode
+      // NOTE: Log buffer is intentionally NOT cleared here.
+      // Consumers (e.g. dev server) are responsible for reading and clearing the
+      // buffer after each request via getLogBuffer() / clearLogBuffer().
+      // In a streaming transport (WebSocket/SSE), buffered logs would be sent as
+      // notifications/message events during handler execution instead.
 
       // For notifications (no id), return 204 No Content
       if (!("id" in rpcRequest)) {

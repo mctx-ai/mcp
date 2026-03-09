@@ -30,14 +30,18 @@ const packageJson = {
   main: "dist/index.js",
   scripts: {
     dev: "npx mctx-dev index.js",
-    build: "esbuild index.js --bundle --platform=node --format=esm --outfile=dist/index.js",
+    build:
+      "esbuild index.js --bundle --minify --platform=node --format=esm --outfile=dist/index.js",
   },
   dependencies: {
     "@mctx-ai/mcp-server": `^${version}`,
   },
   devDependencies: {
     "@mctx-ai/mcp-dev": `^${version}`,
-    esbuild: "^0.20.0",
+    esbuild: "^0.27.0",
+  },
+  engines: {
+    node: ">=22.0.0",
   },
 };
 
@@ -86,12 +90,23 @@ npm install
 npm run dev
 \`\`\`
 
+The dev server runs on port 3000 by default. Set the \`PORT\` environment variable or use the \`--port\` flag to change it:
+
+\`\`\`bash
+PORT=8080 npm run dev
+# or
+npx mctx-dev index.js --port 8080
+\`\`\`
+
 ## Add a Tool
 
 \`\`\`javascript
-// Handlers receive (params, ask):
-//   params — validated input object
-//   ask    — LLM sampling function (undefined if client doesn't support it)
+import { T } from '@mctx-ai/mcp-server';
+import app from './index.js';
+
+// Handlers receive ({ field1, field2 }, ask):
+//   { field1, field2 } — destructured validated input fields
+//   ask                — LLM sampling function (null if client doesn't support it)
 const myTool = ({ input }) => {
   return \`Result: \${input}\`;
 };

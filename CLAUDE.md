@@ -120,13 +120,13 @@ greet.input = { name: T.string({ required: true }) };
 app.tool("greet", greet);
 ```
 
-Handler functions receive up to three parameters: `(args, ask, env)` for tools and prompts, `(params, ask, env)` for resource templates. The `env` parameter is the Cloudflare Workers env object (`Readonly<Record<string, any>>`, defaults to `{}`). All parameters are optional.
+Handler functions receive up to two parameters: `(args, ask)` for tools and prompts, `(params, ask)` for resource templates. All parameters are optional.
 
 ### Handler Types
 
-1. **Tools** — Sync, async, or generator functions. Generators yield progress notifications. `ask` (second param) enables LLM sampling. `env` (third param) provides Cloudflare bindings (D1, KV, Vectorize, secrets).
-2. **Resources** — Static URIs or URI templates with `{param}` placeholders. Params extracted via RFC 6570 Level 1. Template handlers receive `(params, ask, env)`.
-3. **Prompts** — Return string, `conversation()` result, or Message array. Receive `(args, ask, env)`.
+1. **Tools** — Sync, async, or generator functions. Generators yield progress notifications. `ask` (second param) enables LLM sampling.
+2. **Resources** — Static URIs or URI templates with `{param}` placeholders. Params extracted via RFC 6570 Level 1. Template handlers receive `(params, ask)`.
+3. **Prompts** — Return string, `conversation()` result, or Message array. Receive `(args, ask)`.
 
 ### Core Modules
 

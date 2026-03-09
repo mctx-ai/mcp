@@ -51,9 +51,7 @@ const app = createServer({
 });
 
 // A simple greeting tool
-// Handlers receive (params, ask, env) — env is the Cloudflare Workers env object
-// containing your bindings (KV, D1, secrets, etc). Example: env.MY_KV, env.MY_SECRET
-function greet({ name }, ask, env) {
+function greet({ name }) {
   return \`Hello, \${name}! Welcome to mctx.\`;
 }
 greet.description = 'Greet someone by name';
@@ -91,11 +89,10 @@ npm run dev
 ## Add a Tool
 
 \`\`\`javascript
-// Handlers receive (params, ask, env):
+// Handlers receive (params, ask):
 //   params — validated input object
 //   ask    — LLM sampling function (undefined if client doesn't support it)
-//   env    — Cloudflare Workers env bindings (KV, D1, secrets, etc.)
-const myTool = ({ input }, ask, env) => {
+const myTool = ({ input }) => {
   return \`Result: \${input}\`;
 };
 myTool.description = 'What this tool does';

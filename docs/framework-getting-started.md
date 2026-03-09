@@ -55,29 +55,6 @@ Here is what is happening in those 13 lines:
 4. **`app.tool("greet", greet)`** registers the function so AI clients can discover and call it.
 5. **`export default app`** exposes the server as an HTTP handler. The `app` object includes a `fetch` method that mctx uses for deployment. You can also write this as `export default { fetch: app.fetch }` -- both forms work.
 
-## Access Cloudflare bindings
-
-When your server runs on Cloudflare Workers, the Workers runtime injects your environment bindings (D1 databases, KV namespaces, R2 buckets, and other secrets) into the `env` object. The framework passes this object as the third parameter to every handler.
-
-```js
-const lookup = async ({ userId }, _ask, env) => {
-  const user = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(userId).first();
-  return user ? JSON.stringify(user) : "User not found";
-};
-lookup.description = "Look up a user by ID";
-lookup.input = { userId: T.string({ required: true }) };
-
-app.tool("lookup", lookup);
-```
-
-The `env` parameter is optional -- if you don't need bindings, leave it out:
-
-```js
-const greet = ({ name }) => `Hello, ${name}!`;
-```
-
-When not running on Cloudflare Workers (for example, during local development with `mctx-dev`), `env` defaults to an empty object `{}`.
-
 ## Try it locally
 
 Install the dev tooling package, then start the built-in dev server for hot-reload while you work:

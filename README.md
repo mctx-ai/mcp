@@ -175,22 +175,6 @@ log.error("Connection failed");
 
 Levels follow RFC 5424: `debug`, `info`, `notice`, `warning`, `error`, `critical`, `alert`, `emergency`.
 
-### Cloudflare Bindings (env)
-
-Tools, resources, and prompts receive the Cloudflare Workers `env` object as their third argument. Use it to access D1 databases, KV namespaces, Vectorize indexes, secrets, and any other bindings defined in your `wrangler.toml`.
-
-```javascript
-async function getUser({ userId }, _ask, env) {
-  const user = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(userId).first();
-  return JSON.stringify(user);
-}
-getUser.description = "Fetch a user from D1";
-getUser.input = { userId: T.string({ required: true }) };
-app.tool("getUser", getUser);
-```
-
-The `env` parameter is optional and defaults to `{}` — handlers that don't need bindings can omit it entirely.
-
 ### Sampling (ask)
 
 Tools receive an optional `ask` function as their second argument for LLM-in-the-loop patterns.

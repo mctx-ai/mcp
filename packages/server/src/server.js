@@ -209,6 +209,10 @@ export function createServer(options = {}) {
         inputSchema: buildInputSchema(handler.input),
       };
 
+      if (handler.annotations) {
+        tool.annotations = handler.annotations;
+      }
+
       return tool;
     });
 

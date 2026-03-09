@@ -155,6 +155,35 @@ export function createServer(options?: ServerOptions): Server;
  * @param ask - Optional LLM sampling function (null if not supported)
  * @returns Tool result (string, object, or Promise thereof)
  */
+/**
+ * MCP tool annotation hints.
+ * Provides behavioral hints to clients for appropriate UI and permission prompts.
+ * Per the MCP spec 2025-11-25.
+ */
+export interface ToolAnnotations {
+  /**
+   * Hint that the tool only reads data and does not modify state.
+   * Clients may use this to show a less prominent permission prompt.
+   */
+  readOnlyHint?: boolean;
+  /**
+   * Hint that the tool may perform destructive or irreversible actions.
+   * Clients may use this to show a more prominent warning prompt.
+   */
+  destructiveHint?: boolean;
+  /**
+   * Hint that the tool may interact with external systems or the open world
+   * (e.g., make network requests, read from the filesystem).
+   */
+  openWorldHint?: boolean;
+  /**
+   * Hint that the tool can be called repeatedly with the same arguments without
+   * causing additional side effects beyond the first call.
+   * Clients may use this to safely retry or re-run the tool.
+   */
+  idempotentHint?: boolean;
+}
+
 export type ToolHandler = {
   (args: Record<string, any>, ask?: AskFunction | null): any | Promise<any>;
   /** Tool description for documentation */
@@ -163,6 +192,8 @@ export type ToolHandler = {
   input?: Record<string, SchemaDefinition>;
   /** MIME type for binary results (optional) */
   mimeType?: string;
+  /** Behavioral hint annotations for MCP clients */
+  annotations?: ToolAnnotations;
 };
 
 /**
@@ -194,6 +225,8 @@ export type GeneratorToolHandler = {
   description?: string;
   input?: Record<string, SchemaDefinition>;
   mimeType?: string;
+  /** Behavioral hint annotations for MCP clients */
+  annotations?: ToolAnnotations;
 };
 
 /**

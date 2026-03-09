@@ -1,6 +1,6 @@
 {
   "name": "@mctx-ai/mcp-server",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Build MCP servers with an Express-like API — no protocol knowledge required",
   "type": "module",
   "main": "./src/index.js",

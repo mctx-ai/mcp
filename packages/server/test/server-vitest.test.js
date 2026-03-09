@@ -62,6 +62,93 @@ describe("tool registration and tools/list", () => {
     const app = createServer();
     expect(() => app.tool("invalid", "not a function")).toThrow(/must be a function/);
   });
+
+  it("includes annotations in tools/list when handler has annotations set", async () => {
+    const app = createServer();
+
+    const deleteRecords = () => "deleted";
+    deleteRecords.description = "Deletes records permanently";
+    deleteRecords.annotations = {
+      destructiveHint: true,
+      readOnlyHint: false,
+      openWorldHint: false,
+      idempotentHint: false,
+    };
+
+    app.tool("deleteRecords", deleteRecords);
+
+    const request = createRequest({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/list",
+    });
+
+    const response = await app.fetch(request);
+    const data = await response.json();
+
+    expect(data.result.tools).toHaveLength(1);
+    const tool = data.result.tools[0];
+    expect(tool.name).toBe("deleteRecords");
+    expect(tool.annotations).toBeDefined();
+    expect(tool.annotations.destructiveHint).toBe(true);
+    expect(tool.annotations.readOnlyHint).toBe(false);
+    expect(tool.annotations.openWorldHint).toBe(false);
+    expect(tool.annotations.idempotentHint).toBe(false);
+  });
+
+  it("includes only the declared hint when handler has partial annotations", async () => {
+    const app = createServer();
+
+    const readConfig = () => "{}";
+    readConfig.description = "Reads configuration";
+    readConfig.annotations = {
+      readOnlyHint: true,
+    };
+
+    app.tool("readConfig", readConfig);
+
+    const request = createRequest({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/list",
+    });
+
+    const response = await app.fetch(request);
+    const data = await response.json();
+
+    expect(data.result.tools).toHaveLength(1);
+    const tool = data.result.tools[0];
+    expect(tool.name).toBe("readConfig");
+    expect(tool.annotations).toBeDefined();
+    expect(tool.annotations.readOnlyHint).toBe(true);
+    expect(Object.prototype.hasOwnProperty.call(tool.annotations, "destructiveHint")).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(tool.annotations, "openWorldHint")).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(tool.annotations, "idempotentHint")).toBe(false);
+  });
+
+  it("omits annotations field in tools/list when handler has no annotations", async () => {
+    const app = createServer();
+
+    const listRecords = () => "[]";
+    listRecords.description = "Lists records";
+
+    app.tool("listRecords", listRecords);
+
+    const request = createRequest({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/list",
+    });
+
+    const response = await app.fetch(request);
+    const data = await response.json();
+
+    expect(data.result.tools).toHaveLength(1);
+    const tool = data.result.tools[0];
+    expect(tool.name).toBe("listRecords");
+    expect(tool.annotations).toBeUndefined();
+    expect(Object.prototype.hasOwnProperty.call(tool, "annotations")).toBe(false);
+  });
 });
 
 describe("tools/call", () => {

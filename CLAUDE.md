@@ -36,11 +36,13 @@ Note: npm is included with Node.js, so no additional setup action is required.
 
 Three npm workspaces in `packages/` (defined via `"workspaces": ["packages/*"]` in root `package.json`):
 
-- **`@mctx-ai/mcp-server`** (`packages/server/`) — Core framework. Zero runtime dependencies. Exports `createServer`, `T`, `conversation`, `createProgress`, `PROGRESS_DEFAULTS`, `log`. Build is a simple `cp src/*.js src/*.d.ts dist/` (no transpilation).
-- **`@mctx-ai/mcp-dev`** (`packages/dev/`) — Dev server with hot reload and request logging. Peer-depends on `@mctx-ai/mcp-server`. Uses Node.js built-in test runner (`node --test`), not Vitest. Lint is not yet configured.
+- **`@mctx-ai/mcp-server`** (`packages/server/`) — Core framework. Zero runtime dependencies. Exports `createServer`, `T`, `conversation`, `createProgress`, `PROGRESS_DEFAULTS`, `log`, `buildInputSchema`. Build is a simple `cp src/*.js src/*.d.ts dist/` (no transpilation).
+- **`@mctx-ai/mcp-dev`** (`packages/dev/`) — Dev server with hot reload and request logging. Peer-depends on `@mctx-ai/mcp-server`. Uses Node.js built-in test runner (`node --test`), not Vitest. Lint is a stub (`echo 'Linting not configured yet'`).
 - **`create-mctx-server`** (`packages/create-mctx-server/`) — CLI scaffolding tool (`npm create mctx-server <name>`). Generates a new project with `@mctx-ai/mcp-server` + `@mctx-ai/mcp-dev` + `esbuild` configured.
 
 Root commands affect all workspaces. Use `--workspace` flag for package-specific operations.
+
+**Requires:** Node >=22.0.0, npm >=10.8.0 (enforced in root `package.json` `engines` field).
 
 **`.npmrc`:** `save-exact=true` — all dependencies installed with exact versions (no `^` or `~` ranges).
 
@@ -150,10 +152,12 @@ app.tool("greet", greet);
 - `fix(scope):` → Patch version bump
 - `perf(scope):` → Patch version bump
 - `revert(scope):` → Patch version bump
+- `docs(scope):` → Patch version bump
+- `style(scope):` → Patch version bump
 
 **Types that don't trigger releases:**
 
-- `docs:`, `chore:`, `ci:`, `test:`, `refactor:`, `style:`, `build:`
+- `chore:`, `ci:`, `test:`, `refactor:`, `build:`
 
 ### DCO Requirement
 
@@ -225,7 +229,7 @@ Single `.releaserc.json` at root (no per-package configs). Plugin chain:
 3. `@semantic-release/npm` — Publishes to npm registry
 4. `@semantic-release/github` — Creates GitHub release with release notes
 
-**Release rules:** `feat` → minor, `fix`/`perf`/`revert` → patch. All other types (`docs`, `chore`, `ci`, `test`, `refactor`, `style`, `build`) do not trigger releases. `BREAKING CHANGE` in commit body or `!` suffix (e.g., `feat!:`) triggers a major release.
+**Release rules:** `feat` → minor, `fix`/`perf`/`revert`/`docs`/`style` → patch. Other types (`chore`, `ci`, `test`, `refactor`, `build`) do not trigger releases. `BREAKING CHANGE` in commit body or `!` suffix (e.g., `feat!:`) triggers a major release.
 
 No manual version bumps or changelog edits required.
 
@@ -254,8 +258,8 @@ Five GitHub Actions workflows:
 Trigger: push/PR to `main`. Four jobs:
 
 1. **`lint`** — ESLint, Prettier format check, TypeScript type check (`tsc --noEmit`), workspace validation
-2. **`test`** — Matrix: Node `20.x`/`22.x` × ubuntu/windows/macos (fail-fast disabled). Coverage uploaded as artifact for Node 20.x/ubuntu (retained 7 days)
-3. **`security`** — `npm audit --audit-level=high` + license check (`license-checker`, fails on GPL/AGPL)
+2. **`test`** — Matrix: Node `22.x` × ubuntu/windows/macos (fail-fast disabled). Coverage uploaded as artifact for ubuntu (retained 7 days)
+3. **`security`** — `npm audit --audit-level=high --omit=dev` (dev deps excluded) + license check (`license-checker`, fails on GPL/AGPL)
 4. **`scaffold`** — Builds packages, runs `create-mctx-server` to generate a test project, validates generated `package.json` fields
 
 ### `release.yml` — Automated Release

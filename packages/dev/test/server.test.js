@@ -363,7 +363,10 @@ describe("startDevServer HTTP behavior", () => {
     });
     assert.equal(status, 200, "tools/list should return HTTP 200 when Content-Type is forwarded");
     assert.equal(body?.jsonrpc, "2.0");
-    assert.ok(!body?.error, `handler should not see a parse error due to missing Content-Type: ${JSON.stringify(body?.error)}`);
+    assert.ok(
+      !body?.error,
+      `handler should not see a parse error due to missing Content-Type: ${JSON.stringify(body?.error)}`,
+    );
     assert.ok(Array.isArray(body?.result?.tools), "tools should be an array");
   });
 
@@ -379,7 +382,11 @@ describe("startDevServer HTTP behavior", () => {
     assert.equal(status, 200, "ping should return HTTP 200");
     assert.equal(body?.jsonrpc, "2.0");
     assert.ok(!body?.error, `should not return an error: ${JSON.stringify(body?.error)}`);
-    assert.equal(body?.id, 42, "response id must match request id — body was passed through intact");
+    assert.equal(
+      body?.id,
+      42,
+      "response id must match request id — body was passed through intact",
+    );
   });
 });
 

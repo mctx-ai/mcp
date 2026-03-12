@@ -1293,3 +1293,169 @@ describe("ping", () => {
     expect(data.result).toEqual({});
   });
 });
+
+// Helper to create a request with custom headers
+function createRequestWithHeaders(body, headers) {
+  return new Request("http://localhost", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...headers },
+    body: JSON.stringify(body),
+  });
+}
+
+describe("ctx.userId — X-Mctx-User-Id header forwarding", () => {
+  it("passes userId to tool handler when X-Mctx-User-Id header is present", async () => {
+    const app = createServer();
+
+    const whoami = (_args, _ask, ctx) => ctx.userId ?? "anonymous";
+    whoami.input = {};
+    app.tool("whoami", whoami);
+
+    const request = createRequestWithHeaders(
+      {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: { name: "whoami", arguments: {} },
+      },
+      { "X-Mctx-User-Id": "user-abc-123" },
+    );
+
+    const response = await app.fetch(request);
+    const data = await response.json();
+
+    expect(data.result.content[0].text).toBe("user-abc-123");
+  });
+
+  it("passes undefined userId to tool handler when X-Mctx-User-Id header is absent", async () => {
+    const app = createServer();
+
+    const whoami = (_args, _ask, ctx) => (ctx.userId === undefined ? "no-user" : ctx.userId);
+    whoami.input = {};
+    app.tool("whoami", whoami);
+
+    const request = createRequest({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/call",
+      params: { name: "whoami", arguments: {} },
+    });
+
+    const response = await app.fetch(request);
+    const data = await response.json();
+
+    expect(data.result.content[0].text).toBe("no-user");
+  });
+
+  it("passes userId to resource handler when X-Mctx-User-Id header is present", async () => {
+    const app = createServer();
+
+    const profileResource = (_params, _ask, ctx) => `profile:${ctx.userId ?? "anonymous"}`;
+    profileResource.mimeType = "text/plain";
+    app.resource("docs://profile", profileResource);
+
+    const request = createRequestWithHeaders(
+      {
+        jsonrpc: "2.0",
+        id: 3,
+        method: "resources/read",
+        params: { uri: "docs://profile" },
+      },
+      { "X-Mctx-User-Id": "user-xyz-456" },
+    );
+
+    const response = await app.fetch(request);
+    const data = await response.json();
+
+    expect(data.result.contents[0].text).toBe("profile:user-xyz-456");
+  });
+
+  it("passes undefined userId to resource handler when X-Mctx-User-Id header is absent", async () => {
+    const app = createServer();
+
+    const profileResource = (_params, _ask, ctx) =>
+      ctx.userId === undefined ? "no-user" : ctx.userId;
+    profileResource.mimeType = "text/plain";
+    app.resource("docs://profile", profileResource);
+
+    const request = createRequest({
+      jsonrpc: "2.0",
+      id: 4,
+      method: "resources/read",
+      params: { uri: "docs://profile" },
+    });
+
+    const response = await app.fetch(request);
+    const data = await response.json();
+
+    expect(data.result.contents[0].text).toBe("no-user");
+  });
+
+  it("passes userId to prompt handler when X-Mctx-User-Id header is present", async () => {
+    const app = createServer();
+
+    const greetPrompt = (_args, _ask, ctx) => `Hello, ${ctx.userId ?? "stranger"}!`;
+    greetPrompt.input = {};
+    app.prompt("greet", greetPrompt);
+
+    const request = createRequestWithHeaders(
+      {
+        jsonrpc: "2.0",
+        id: 5,
+        method: "prompts/get",
+        params: { name: "greet", arguments: {} },
+      },
+      { "X-Mctx-User-Id": "user-qrs-789" },
+    );
+
+    const response = await app.fetch(request);
+    const data = await response.json();
+
+    expect(data.result.messages[0].content.text).toBe("Hello, user-qrs-789!");
+  });
+
+  it("passes undefined userId to prompt handler when X-Mctx-User-Id header is absent", async () => {
+    const app = createServer();
+
+    const greetPrompt = (_args, _ask, ctx) =>
+      ctx.userId === undefined ? "no-user" : `Hello, ${ctx.userId}!`;
+    greetPrompt.input = {};
+    app.prompt("greet", greetPrompt);
+
+    const request = createRequest({
+      jsonrpc: "2.0",
+      id: 6,
+      method: "prompts/get",
+      params: { name: "greet", arguments: {} },
+    });
+
+    const response = await app.fetch(request);
+    const data = await response.json();
+
+    expect(data.result.messages[0].content.text).toBe("no-user");
+  });
+
+  it("two-parameter tool handler continues to work without modification", async () => {
+    const app = createServer();
+
+    // Declares only (args) — no ask or ctx param
+    const echo = ({ message }) => message;
+    echo.input = { message: { type: "string" } };
+    app.tool("echo", echo);
+
+    const request = createRequestWithHeaders(
+      {
+        jsonrpc: "2.0",
+        id: 7,
+        method: "tools/call",
+        params: { name: "echo", arguments: { message: "hello" } },
+      },
+      { "X-Mctx-User-Id": "user-compat-test" },
+    );
+
+    const response = await app.fetch(request);
+    const data = await response.json();
+
+    expect(data.result.content[0].text).toBe("hello");
+  });
+});

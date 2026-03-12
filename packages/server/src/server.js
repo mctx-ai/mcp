@@ -151,8 +151,9 @@ export function createServer(options = {}) {
   /**
    * Register a tool
    * @param {string} name - Tool name
-   * @param {Function} handler - Tool handler function. Called as handler(params, ask) where
-   *   params is the validated input and ask is the sampling function (or undefined).
+   * @param {Function} handler - Tool handler function. Called as handler(params, ask, ctx) where
+   *   params is the validated input, ask is the sampling function (or undefined),
+   *   and ctx is the request context with optional userId.
    * @returns {Object} App instance (for chaining)
    */
   function tool(name, handler) {
@@ -167,8 +168,9 @@ export function createServer(options = {}) {
   /**
    * Register a resource
    * @param {string} uri - Resource URI (may contain {param} templates)
-   * @param {Function} handler - Resource handler function. Called as handler(params, ask) where
-   *   params contains URI template variables and ask is the sampling function (or undefined).
+   * @param {Function} handler - Resource handler function. Called as handler(params, ask, ctx) where
+   *   params contains URI template variables, ask is the sampling function (or undefined),
+   *   and ctx is the request context with optional userId.
    * @returns {Object} App instance (for chaining)
    */
   function resource(uri, handler) {
@@ -183,8 +185,9 @@ export function createServer(options = {}) {
   /**
    * Register a prompt
    * @param {string} name - Prompt name
-   * @param {Function} handler - Prompt handler function. Called as handler(params, ask) where
-   *   params is the validated input and ask is the sampling function (or undefined).
+   * @param {Function} handler - Prompt handler function. Called as handler(params, ask, ctx) where
+   *   params is the validated input, ask is the sampling function (or undefined),
+   *   and ctx is the request context with optional userId.
    * @returns {Object} App instance (for chaining)
    */
   function prompt(name, handler) {
@@ -229,9 +232,10 @@ export function createServer(options = {}) {
    * @param {Object} params - Request params
    * @param {Object} [meta] - Request metadata (_meta field)
    * @param {string|null} [sessionId] - MCP session ID from request header
+   * @param {Object} [ctx] - Request context (e.g. { userId })
    * @returns {Promise<Object>} Tool result
    */
-  async function handleToolsCall(params, meta = {}, sessionId = null) {
+  async function handleToolsCall(params, meta = {}, sessionId = null, ctx = {}) {
     const { name, arguments: args } = params;
 
     if (!name) {
@@ -268,11 +272,11 @@ export function createServer(options = {}) {
 
       if (isGenerator) {
         // Execute generator with progress tracking
-        return await executeGeneratorHandler(handler, sanitizedArgs, ask, meta);
+        return await executeGeneratorHandler(handler, sanitizedArgs, ask, meta, ctx);
       }
 
       // Execute regular handler (support both sync and async)
-      const result = await handler(sanitizedArgs, ask);
+      const result = await handler(sanitizedArgs, ask, ctx);
 
       // Wrap result based on type
       if (typeof result === "string") {
@@ -303,9 +307,10 @@ export function createServer(options = {}) {
    * @param {Object} args - Tool arguments
    * @param {Function|null} ask - Ask function (or null if not supported)
    * @param {Object} meta - Request metadata
+   * @param {Object} [ctx] - Request context (e.g. { userId })
    * @returns {Promise<Object>} Tool result
    */
-  async function executeGeneratorHandler(handler, args, ask, meta) {
+  async function executeGeneratorHandler(handler, args, ask, meta, ctx = {}) {
     const progressToken = meta.progressToken;
     const startTime = Date.now();
     let yieldCount = 0;
@@ -317,7 +322,7 @@ export function createServer(options = {}) {
 
     try {
       // Execute generator using iterator protocol to capture return value
-      const iterator = handler(args, ask);
+      const iterator = handler(args, ask, ctx);
       let iterResult = await iterator.next();
 
       while (!iterResult.done) {
@@ -427,9 +432,10 @@ export function createServer(options = {}) {
    * Handle resources/read request
    * @param {Object} params - Request params
    * @param {string|null} [sessionId] - MCP session ID from request header
+   * @param {Object} [ctx] - Request context (e.g. { userId })
    * @returns {Promise<Object>} Resource content
    */
-  async function handleResourcesRead(params, sessionId = null) {
+  async function handleResourcesRead(params, sessionId = null, ctx = {}) {
     const { uri } = params;
 
     if (!uri) {
@@ -483,8 +489,8 @@ export function createServer(options = {}) {
       // Sanitize extracted params to prevent prototype pollution
       const sanitizedParams = sanitizeInput(extractedParams);
 
-      // Execute handler with sanitized params and ask
-      const result = await handler(sanitizedParams, ask);
+      // Execute handler with sanitized params, ask, and context
+      const result = await handler(sanitizedParams, ask, ctx);
 
       // Wrap result as resource content
       const mimeType = handler.mimeType || "text/plain";
@@ -566,9 +572,10 @@ export function createServer(options = {}) {
    * Handle prompts/get request
    * @param {Object} params - Request params
    * @param {string|null} [sessionId] - MCP session ID from request header
+   * @param {Object} [ctx] - Request context (e.g. { userId })
    * @returns {Promise<Object>} Prompt messages
    */
-  async function handlePromptsGet(params, sessionId = null) {
+  async function handlePromptsGet(params, sessionId = null, ctx = {}) {
     const { name, arguments: args } = params;
 
     if (!name) {
@@ -587,8 +594,8 @@ export function createServer(options = {}) {
       // Sanitize arguments to prevent prototype pollution
       const sanitizedArgs = sanitizeInput(args || {});
 
-      // Execute handler with sanitized args
-      const result = await handler(sanitizedArgs, ask);
+      // Execute handler with sanitized args and context
+      const result = await handler(sanitizedArgs, ask, ctx);
 
       // If handler returns a string, wrap as user message
       if (typeof result === "string") {
@@ -783,10 +790,14 @@ export function createServer(options = {}) {
    * Route JSON-RPC request to appropriate handler
    * @param {Object} request - JSON-RPC request
    * @param {string|null} sessionId - MCP session ID from request header
+   * @param {string|undefined} userId - User ID from X-Mctx-User-Id request header
    * @returns {Promise<Object>} Response result
    */
-  async function route(request, sessionId) {
+  async function route(request, sessionId, userId) {
     const { method, params, _meta } = request;
+
+    // Build context object passed as third arg to all handlers
+    const ctx = { userId };
 
     switch (method) {
       case "initialize":
@@ -804,13 +815,13 @@ export function createServer(options = {}) {
         return handleToolsList(params);
 
       case "tools/call":
-        return await handleToolsCall(params, _meta, sessionId);
+        return await handleToolsCall(params, _meta, sessionId, ctx);
 
       case "resources/list":
         return handleResourcesList(params);
 
       case "resources/read":
-        return await handleResourcesRead(params, sessionId);
+        return await handleResourcesRead(params, sessionId, ctx);
 
       case "resources/templates/list":
         return handleResourceTemplatesList(params);
@@ -819,7 +830,7 @@ export function createServer(options = {}) {
         return handlePromptsList(params);
 
       case "prompts/get":
-        return await handlePromptsGet(params, sessionId);
+        return await handlePromptsGet(params, sessionId, ctx);
 
       case "notifications/cancelled":
         // Silent acknowledgment - no response for notifications
@@ -867,6 +878,9 @@ export function createServer(options = {}) {
 
     // Extract session ID from request header for sampling back-channel
     const sessionId = request.headers.get("Mcp-Session-Id") || null;
+
+    // Extract user ID from request header injected by mctx dispatch worker
+    const userId = request.headers.get("x-mctx-user-id") || undefined;
 
     let rpcRequest;
     let rawBody;
@@ -918,7 +932,7 @@ export function createServer(options = {}) {
 
     try {
       // Route request
-      const result = await route(rpcRequest, sessionId);
+      const result = await route(rpcRequest, sessionId, userId);
 
       // NOTE: Log buffer is intentionally NOT cleared here.
       // Consumers (e.g. dev server) are responsible for reading and clearing the

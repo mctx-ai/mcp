@@ -391,6 +391,103 @@ describe("startDevServer HTTP behavior", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Header forwarding tests — verify incoming headers reach the fetch handler
+// ---------------------------------------------------------------------------
+
+describe("startDevServer header forwarding", () => {
+  let tmpDir;
+  let srv;
+
+  before(async () => {
+    tmpDir = mkdtempSync(join(tmpdir(), "mctx-header-test-"));
+
+    // Mock app that echoes back the X-Mctx-User-Id header value in the result
+    const src = `
+export default {
+  fetch: async (req) => {
+    const userId = req.headers.get("x-mctx-user-id") ?? null;
+    const headers = { "Content-Type": "application/json" };
+    const body = await req.json().catch(() => ({}));
+    if (body?.method === "ping") {
+      return new Response(
+        JSON.stringify({ jsonrpc: "2.0", id: body.id, result: {} }),
+        { status: 200, headers }
+      );
+    }
+    return new Response(
+      JSON.stringify({ jsonrpc: "2.0", id: body?.id ?? null, result: { userId } }),
+      { status: 200, headers }
+    );
+  }
+};
+`;
+    const filePath = join(tmpDir, "header-app.js");
+    writeFileSync(filePath, src);
+    srv = await startServer(filePath);
+  });
+
+  after(() => {
+    if (srv) srv.kill();
+    if (tmpDir) rmSync(tmpDir, { recursive: true });
+  });
+
+  test("X-Mctx-User-Id header is forwarded through dev server to the core fetch handler", async () => {
+    const payload = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" });
+    const { status, body } = await new Promise((resolve, reject) => {
+      const req = httpRequest(
+        {
+          hostname: "127.0.0.1",
+          port: srv.port,
+          path: "/",
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Content-Length": Buffer.byteLength(payload),
+            "X-Mctx-User-Id": "user-abc-123",
+          },
+        },
+        (res) => {
+          let data = "";
+          res.on("data", (chunk) => (data += chunk));
+          res.on("end", () => {
+            try {
+              resolve({ status: res.statusCode, body: JSON.parse(data) });
+            } catch {
+              resolve({ status: res.statusCode, body: data });
+            }
+          });
+        },
+      );
+      req.on("error", reject);
+      req.write(payload);
+      req.end();
+    });
+
+    assert.equal(status, 200, "request should succeed");
+    assert.equal(
+      body?.result?.userId,
+      "user-abc-123",
+      `X-Mctx-User-Id should reach the fetch handler, got: ${body?.result?.userId}`,
+    );
+  });
+
+  test("requests without X-Mctx-User-Id header receive null userId in fetch handler", async () => {
+    const { status, body } = await rpcPost(srv.port, {
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/list",
+    });
+
+    assert.equal(status, 200, "request should succeed");
+    assert.equal(
+      body?.result?.userId,
+      null,
+      `userId should be null when header is absent, got: ${body?.result?.userId}`,
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Error recovery tests — one subprocess per scenario
 // ---------------------------------------------------------------------------
 

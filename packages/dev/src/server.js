@@ -124,12 +124,45 @@ function formatError(error, rpcRequest) {
  * object does not satisfy that contract, so we construct a real Request using
  * globalThis.Request, which is guaranteed in Node >=18 (project requires >=22).
  *
+ * Incoming headers from the Node.js IncomingMessage are forwarded so that
+ * headers like X-Mctx-User-Id reach the core server's fetch handler. The
+ * Content-Type header is always set to application/json for JSON-RPC, overriding
+ * any incoming value to ensure the body is parsed correctly.
+ *
+ * Hop-by-hop headers are filtered out before forwarding to prevent header
+ * forwarding edge cases in the dev server.
+ *
  * @param {string} rawBody - The raw JSON string already read from the Node IncomingMessage
+ * @param {import("http").IncomingHttpHeaders} incomingHeaders - Headers from the Node IncomingMessage
  */
-function createRequest(rawBody) {
+function createRequest(rawBody, incomingHeaders = {}) {
+  // Hop-by-hop headers that should not be forwarded
+  const hopByHopHeaders = new Set([
+    "host",
+    "content-length",
+    "transfer-encoding",
+    "connection",
+    "keep-alive",
+    "upgrade",
+    "proxy-authenticate",
+    "proxy-authorization",
+    "te",
+    "trailer",
+  ]);
+
+  // Filter out hop-by-hop headers before spreading
+  const filteredHeaders = {};
+  for (const [key, value] of Object.entries(incomingHeaders)) {
+    if (!hopByHopHeaders.has(key.toLowerCase())) {
+      filteredHeaders[key] = value;
+    }
+  }
+
+  // Content-Type is set explicitly as an override
+  const headers = { ...filteredHeaders, "Content-Type": "application/json" };
   return new globalThis.Request("http://localhost/", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: rawBody,
   });
 }
@@ -387,7 +420,7 @@ export async function startDevServer(entryUrl, port) {
       try {
         // Delegate all requests to app's fetch handler (including initialize)
         // The core SDK now handles initialize, initialized, and ping
-        const request = createRequest(body);
+        const request = createRequest(body, req.headers);
         const response = await app.fetch(request, {}, {});
 
         const elapsed = Date.now() - startTime;

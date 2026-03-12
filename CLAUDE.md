@@ -36,7 +36,7 @@ Note: npm is included with Node.js, so no additional setup action is required.
 
 Three npm workspaces in `packages/` (defined via `"workspaces": ["packages/*"]` in root `package.json`):
 
-- **`@mctx-ai/mcp-server`** (`packages/server/`) — Core framework. Zero runtime dependencies. Exports `createServer`, `T`, `conversation`, `createProgress`, `PROGRESS_DEFAULTS`, `log`, `buildInputSchema`, `getLogBuffer`, `clearLogBuffer`. Build is a simple `cp src/*.js src/*.d.ts dist/` (no transpilation).
+- **`@mctx-ai/mcp-server`** (`packages/server/`) — Core framework. Zero runtime dependencies. Exports `createServer`, `T`, `conversation`, `createProgress`, `PROGRESS_DEFAULTS`, `log`, `buildInputSchema`, `getLogBuffer`, `clearLogBuffer`. Type exports include `McpContext` (`{ userId?: string }`). Build is a simple `cp src/*.js src/*.d.ts dist/` (no transpilation).
 - **`@mctx-ai/mcp-dev`** (`packages/dev/`) — Dev server with hot reload, request logging, log surfacing (handler log entries printed to dev console), and sampling stub (`/_mctx/sampling` endpoint returns error in dev mode). Peer-depends on `@mctx-ai/mcp-server`. Uses Node.js built-in test runner (`node --test`), not Vitest. Lint is a stub (`echo 'Linting not configured yet'`).
 - **`create-mctx-server`** (`packages/create-mctx-server/`) — CLI scaffolding tool (`npm create mctx-server <name>`). Generates a new project with `@mctx-ai/mcp-server` + `@mctx-ai/mcp-dev` + `esbuild` configured.
 
@@ -120,13 +120,15 @@ greet.input = { name: T.string({ required: true }) };
 app.tool("greet", greet);
 ```
 
-Handler functions receive up to two parameters: `(args, ask)` for tools and prompts, `(params, ask)` for resource templates. All parameters are optional.
+Handler functions receive up to three parameters: `(args, ask, ctx)` for tools and prompts, `(params, ask, ctx)` for resource templates. All parameters are optional. `ctx` is an `McpContext` object `{ userId?: string }` populated automatically by the platform.
 
 ### Handler Types
 
-1. **Tools** — Sync, async, or generator functions. Generators yield progress notifications. `ask` (second param) enables LLM sampling.
-2. **Resources** — Static URIs or URI templates with `{param}` placeholders. Params extracted via RFC 6570 Level 1. Template handlers receive `(params, ask)`.
-3. **Prompts** — Return string, `conversation()` result, or Message array. Receive `(args, ask)`.
+1. **Tools** — Sync, async, or generator functions. Generators yield progress notifications. `ask` (second param) enables LLM sampling. `ctx` (third param) carries per-request context including `ctx.userId`.
+2. **Resources** — Static URIs or URI templates with `{param}` placeholders. Params extracted via RFC 6570 Level 1. Template handlers receive `(params, ask, ctx)`.
+3. **Prompts** — Return string, `conversation()` result, or Message array. Receive `(args, ask, ctx)`.
+
+`McpContext` shape: `{ userId?: string }`. `ctx.userId` is a stable, opaque identifier for the authenticated user extracted from the `X-Mctx-User-Id` HTTP header injected by the mctx dispatch worker. It is `undefined` for unauthenticated requests.
 
 ### Core Modules
 

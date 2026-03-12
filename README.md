@@ -187,6 +187,24 @@ async function summarize({ url }, ask) {
 }
 ```
 
+### Request Context (ctx)
+
+Handlers receive an optional `ctx` object as their third argument. It carries per-request context
+populated automatically by the platform.
+
+```javascript
+function greet({ name }, _ask, ctx) {
+  if (ctx.userId) log.info("Request from user", ctx.userId);
+  return "Hello, " + name;
+}
+```
+
+| Property     | Type                  | Description                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------ | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ctx.userId` | `string \| undefined` | Stable, opaque identifier for the authenticated user within this server. Populated from the `X-Mctx-User-Id` header injected by the mctx dispatch worker. **Note:** The same user receives a different identifier on each MCP server, preventing cross-server user correlation. The ID is stable only within a given server. `undefined` when the request is unauthenticated. |
+
+The `ctx` parameter is available on all handler types: tools, resources, and prompts.
+
 ---
 
 ## Development

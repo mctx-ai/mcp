@@ -144,6 +144,22 @@ export interface ServerOptions {
 export function createServer(options?: ServerOptions): Server;
 
 // ============================================================================
+// Context Types
+// ============================================================================
+
+/**
+ * Request context passed as the third argument to all handler functions.
+ * Populated from HTTP headers injected by the mctx dispatch worker.
+ */
+export interface McpContext {
+  /**
+   * Authenticated user ID, extracted from the X-Mctx-User-Id request header.
+   * Undefined when no user ID header is present.
+   */
+  userId?: string;
+}
+
+// ============================================================================
 // Handler Types
 // ============================================================================
 
@@ -185,7 +201,7 @@ export interface ToolAnnotations {
 }
 
 export type ToolHandler = {
-  (args: Record<string, any>, ask?: AskFunction | null): any | Promise<any>;
+  (args: Record<string, any>, ask?: AskFunction | null, ctx?: McpContext): any | Promise<any>;
   /** Tool description for documentation */
   description?: string;
   /** Input schema definition using T types */
@@ -221,6 +237,7 @@ export type GeneratorToolHandler = {
   (
     args: Record<string, any>,
     ask?: AskFunction | null,
+    ctx?: McpContext,
   ): Generator<any, any, any> | AsyncGenerator<any, any, any>;
   description?: string;
   input?: Record<string, SchemaDefinition>;
@@ -238,7 +255,7 @@ export type GeneratorToolHandler = {
  * @returns Resource content
  */
 export type ResourceHandler = {
-  (params: Record<string, string>, ask?: AskFunction | null): any | Promise<any>;
+  (params: Record<string, string>, ask?: AskFunction | null, ctx?: McpContext): any | Promise<any>;
   /** Resource name for display */
   name?: string;
   /** Resource description */
@@ -259,6 +276,7 @@ export type PromptHandler = {
   (
     args: Record<string, any>,
     ask?: AskFunction | null,
+    ctx?: McpContext,
   ): string | ConversationResult | Message[] | Promise<string | ConversationResult | Message[]>;
   /** Prompt description */
   description?: string;

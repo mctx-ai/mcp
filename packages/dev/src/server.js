@@ -247,6 +247,21 @@ export async function startDevServer(entryUrl, port) {
       return;
     }
 
+    // Return 404 for OAuth discovery paths so MCP clients (e.g. Claude Code) do not
+    // trigger an auth flow. Without this, non-POST requests fall through to the
+    // method check below and return 405, which some clients interpret as "auth
+    // endpoint exists but wrong method".
+    if (req.method === "GET" && req.url && req.url.startsWith("/.well-known/")) {
+      res.writeHead(404, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          error: "Not Found",
+          message: "OAuth discovery is not supported by this server",
+        }),
+      );
+      return;
+    }
+
     // Fix #2: If app failed to load initially, return error
     if (!app) {
       res.writeHead(503, { "Content-Type": "application/json" });

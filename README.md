@@ -199,9 +199,9 @@ function greet({ name }, _ask, ctx) {
 }
 ```
 
-| Property     | Type                  | Description                                                                                                                                                                             |
-| ------------ | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ctx.userId` | `string \| undefined` | Stable, opaque identifier for the authenticated user. Populated from the `X-Mctx-User-Id` header injected by the mctx dispatch worker. `undefined` when the request is unauthenticated. |
+| Property     | Type                  | Description                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------ | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ctx.userId` | `string \| undefined` | Stable, opaque identifier for the authenticated user within this server. Populated from the `X-Mctx-User-Id` header injected by the mctx dispatch worker. **Note:** The same user receives a different identifier on each MCP server, preventing cross-server user correlation. The ID is stable only within a given server. `undefined` when the request is unauthenticated. |
 
 The `ctx` parameter is available on all handler types: tools, resources, and prompts.
 

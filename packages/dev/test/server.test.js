@@ -208,9 +208,9 @@ function postRaw(port, raw) {
 /**
  * Send a GET request.
  */
-function httpGet(port) {
+function httpGet(port, path = "/") {
   return new Promise((resolve, reject) => {
-    const req = httpRequest({ hostname: "127.0.0.1", port, path: "/", method: "GET" }, (res) => {
+    const req = httpRequest({ hostname: "127.0.0.1", port, path, method: "GET" }, (res) => {
       let data = "";
       res.on("data", (c) => (data += c));
       res.on("end", () => {
@@ -253,6 +253,16 @@ describe("startDevServer HTTP behavior", () => {
       body?.error?.message?.toLowerCase().includes("post"),
       `expected 'POST' in error message, got: ${body?.error?.message}`,
     );
+  });
+
+  test("GET /.well-known/oauth-authorization-server returns 404", async () => {
+    const { status } = await httpGet(srv.port, "/.well-known/oauth-authorization-server");
+    assert.equal(status, 404);
+  });
+
+  test("GET /.well-known/oauth-protected-resource returns 404", async () => {
+    const { status } = await httpGet(srv.port, "/.well-known/oauth-protected-resource");
+    assert.equal(status, 404);
   });
 
   test("responds 400 with JSON-RPC parse error code for malformed JSON body", async () => {

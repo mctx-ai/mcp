@@ -117,20 +117,21 @@ function formatError(error, rpcRequest) {
 }
 
 /**
- * Create Request-like object compatible with app's fetch handler.
- * headers must be a Headers instance (not a plain object) so that
- * request.headers.get(...) works in packages/server/src/server.js.
+ * Create a Web API Request for the app's fetch handler.
+ *
+ * The app's fetch handler (packages/server/src/server.js) uses the standard
+ * Web API Request interface: request.headers.get() and request.text(). A plain
+ * object does not satisfy that contract, so we construct a real Request using
+ * globalThis.Request, which is guaranteed in Node >=18 (project requires >=22).
+ *
+ * @param {string} rawBody - The raw JSON string already read from the Node IncomingMessage
  */
-function createRequest(body) {
-  return {
+function createRequest(rawBody) {
+  return new globalThis.Request("http://localhost/", {
     method: "POST",
-    headers: new Headers({
-      "content-type": "application/json",
-    }),
-    async json() {
-      return body;
-    },
-  };
+    headers: { "Content-Type": "application/json" },
+    body: rawBody,
+  });
 }
 
 /**
@@ -386,7 +387,7 @@ export async function startDevServer(entryUrl, port) {
       try {
         // Delegate all requests to app's fetch handler (including initialize)
         // The core SDK now handles initialize, initialized, and ping
-        const request = createRequest(rpcRequest);
+        const request = createRequest(body);
         const response = await app.fetch(request, {}, {});
 
         const elapsed = Date.now() - startTime;

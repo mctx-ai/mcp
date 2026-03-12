@@ -117,14 +117,16 @@ function formatError(error, rpcRequest) {
 }
 
 /**
- * Create Request-like object compatible with app's fetch handler
+ * Create Request-like object compatible with app's fetch handler.
+ * headers must be a Headers instance (not a plain object) so that
+ * request.headers.get(...) works in packages/server/src/server.js.
  */
 function createRequest(body) {
   return {
     method: "POST",
-    headers: {
+    headers: new Headers({
       "content-type": "application/json",
-    },
+    }),
     async json() {
       return body;
     },

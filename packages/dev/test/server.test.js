@@ -78,6 +78,12 @@ export default {
         { status: 200, headers }
       );
     }
+    if (method === "initialize") {
+      return new Response(
+        JSON.stringify({ jsonrpc: "2.0", id: body.id, result: { protocolVersion: "2024-11-05", capabilities: {}, serverInfo: { name: "mock", version: "1.0.0" } } }),
+        { status: 200, headers }
+      );
+    }
     if (method === "ping") {
       return new Response(
         JSON.stringify({ jsonrpc: "2.0", id: body.id, result: {} }),
@@ -325,6 +331,55 @@ describe("startDevServer HTTP behavior", () => {
       method: "tools/list",
     });
     assert.equal(body?.id, 99, "response id should match request id");
+  });
+
+  // createRequest() integration tests — verify the Web API Request constructed
+  // by createRequest() correctly forwards headers and body to the app fetch handler.
+
+  test("POST initialize request returns successful JSON-RPC response (not parse error, not headers.get error)", async () => {
+    const { status, body } = await rpcPost(srv.port, {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2024-11-05",
+        capabilities: {},
+        clientInfo: { name: "test-client", version: "1.0.0" },
+      },
+    });
+    assert.equal(status, 200, "initialize should return HTTP 200");
+    assert.equal(body?.jsonrpc, "2.0", "response should be JSON-RPC 2.0");
+    assert.ok(!body?.error, `should not return a JSON-RPC error: ${JSON.stringify(body?.error)}`);
+    assert.ok(body?.result, "initialize should return a result object");
+  });
+
+  test("POST tools/list with Content-Type application/json header is properly forwarded to the fetch handler", async () => {
+    // The app's fetch handler calls req.json() which requires Content-Type: application/json.
+    // If createRequest() drops the header, req.json() may fail or the body may not be parsed.
+    const { status, body } = await rpcPost(srv.port, {
+      jsonrpc: "2.0",
+      id: 6,
+      method: "tools/list",
+    });
+    assert.equal(status, 200, "tools/list should return HTTP 200 when Content-Type is forwarded");
+    assert.equal(body?.jsonrpc, "2.0");
+    assert.ok(!body?.error, `handler should not see a parse error due to missing Content-Type: ${JSON.stringify(body?.error)}`);
+    assert.ok(Array.isArray(body?.result?.tools), "tools should be an array");
+  });
+
+  test("POST body is properly passed through to the fetch handler (not double-parsed, not dropped)", async () => {
+    // Verifies the raw body string is forwarded intact so the mock app can parse it
+    // and route by method name. A dropped or re-serialized body would lose the id
+    // field or produce a method-not-found error.
+    const { status, body } = await rpcPost(srv.port, {
+      jsonrpc: "2.0",
+      id: 42,
+      method: "ping",
+    });
+    assert.equal(status, 200, "ping should return HTTP 200");
+    assert.equal(body?.jsonrpc, "2.0");
+    assert.ok(!body?.error, `should not return an error: ${JSON.stringify(body?.error)}`);
+    assert.equal(body?.id, 42, "response id must match request id — body was passed through intact");
   });
 });
 

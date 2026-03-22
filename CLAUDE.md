@@ -36,7 +36,7 @@ Note: npm is included with Node.js, so no additional setup action is required.
 
 Three npm workspaces in `packages/` (defined via `"workspaces": ["packages/*"]` in root `package.json`):
 
-- **`@mctx-ai/mcp-server`** (`packages/server/`) — Core framework. Zero runtime dependencies. Exports `createServer`, `T`, `conversation`, `createProgress`, `PROGRESS_DEFAULTS`, `log`, `buildInputSchema`, `getLogBuffer`, `clearLogBuffer`. Type exports include `McpContext` (`{ userId?: string }`). Build is a simple `cp src/*.js src/*.d.ts dist/` (no transpilation).
+- **`@mctx-ai/mcp-server`** (`packages/server/`) — Core framework. Zero runtime dependencies. Exports `createServer`, `T`, `conversation`, `createProgress`, `PROGRESS_DEFAULTS`, `log`, `buildInputSchema`, `getLogBuffer`, `clearLogBuffer`, `createEmit`, `META_KEY_PATTERN`. Type exports include `McpContext` (`{ userId?: string, emit: EmitFunction }`). Build is a simple `cp src/*.js src/*.d.ts dist/` (no transpilation).
 - **`@mctx-ai/mcp-dev`** (`packages/dev/`) — Dev server with hot reload, request logging, log surfacing (handler log entries printed to dev console), and sampling stub (`/_mctx/sampling` endpoint returns error in dev mode). Peer-depends on `@mctx-ai/mcp-server`. Uses Node.js built-in test runner (`node --test`), not Vitest. Lint is a stub (`echo 'Linting not configured yet'`).
 - **`create-mctx-server`** (`packages/create-mctx-server/`) — CLI scaffolding tool (`npm create mctx-server <name>`). Generates a new project with `@mctx-ai/mcp-server` + `@mctx-ai/mcp-dev` + `esbuild` configured.
 
@@ -128,7 +128,53 @@ Handler functions receive up to three parameters: `(args, ask, ctx)` for tools a
 2. **Resources** — Static URIs or URI templates with `{param}` placeholders. Params extracted via RFC 6570 Level 1. Template handlers receive `(params, ask, ctx)`.
 3. **Prompts** — Return string, `conversation()` result, or Message array. Receive `(args, ask, ctx)`.
 
-`McpContext` shape: `{ userId?: string }`. `ctx.userId` is a stable, opaque identifier for the authenticated user extracted from the `X-Mctx-User-Id` HTTP header injected by the mctx dispatch worker. It is `undefined` for unauthenticated requests.
+`McpContext` shape: `{ userId?: string, emit: EmitFunction }`. `ctx.userId` is a stable, opaque identifier for the authenticated user extracted from the `X-Mctx-User-Id` HTTP header injected by the mctx dispatch worker. It is `undefined` for unauthenticated requests.
+
+### Channel Events
+
+`ctx.emit(content, options?)` — Fire-and-forget channel event emission available in all handler types (tools, resources, prompts) via the `ctx` parameter.
+
+**Signature:**
+
+```javascript
+ctx.emit(content, options?)
+```
+
+**Parameters:**
+
+- `content` (string) — Display text for the event, non-empty, truncated to 500 characters
+- `options` (object, optional) — Event configuration
+  - `options.eventType` (string) — Custom event type identifier (default: `"notification"`), must match `[a-zA-Z0-9_]+`
+  - `options.meta` (object) — Key-value metadata, both keys and values must be strings and keys must match `[a-zA-Z0-9_]+`
+
+**Behavior:**
+
+- No-ops silently when unconfigured (missing env vars: `MCTX_EVENTS_ENDPOINT`, `MCTX_SERVER_ID`, `MCTX_EVENTS_SECRET`)
+- No-ops silently on failure or invalid input
+- Content automatically truncated to 500 characters
+- Metadata keys and values validated; any violation triggers silent no-op
+- HMAC-SHA256 signed via Web Crypto API and POSTed to `MCTX_EVENTS_ENDPOINT`
+- Fire-and-forget via `ctx.waitUntil()` (does not block tool response or await result)
+- Environment variables injected at deploy time by mctx platform
+
+**Important:** Developers MUST sanitize user-generated content before passing to `ctx.emit()`. The emit function does not perform content sanitization beyond length truncation. This is a one-way channel (v1) — server to client push only, no reply tools.
+
+**Example:**
+
+```javascript
+function myTool({ userId }, _ask, ctx) {
+  // ... do work ...
+
+  // Sanitize user input before emitting
+  const sanitizedMessage = sanitize(userInput);
+  ctx.emit(`User ${userId} completed task`, {
+    eventType: "task_complete",
+    meta: { user_id: userId, status: "success" },
+  });
+
+  return { success: true };
+}
+```
 
 ### Core Modules
 
@@ -141,6 +187,7 @@ Handler functions receive up to three parameters: `(args, ask, ctx)` for tools a
 - **`sampling.js`** — LLM-in-the-loop via `ask` function (client sampling capability)
 - **`completion.js`** — Auto-completion from handlers, T.enum, or URI templates
 - **`security.js`** — Error sanitization, secret redaction, size limits, URI scheme validation
+- **`channel.js`** — Channel event emission (createEmit, HMAC signing, meta validation)
 
 ---
 

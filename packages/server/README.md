@@ -229,6 +229,76 @@ The full handler signature is `(args, ask)` for tools and prompts, and `(params,
 
 ---
 
+## Channel Events
+
+Channel events let your server push real-time notifications to mctx channel subscribers. Each call is fire-and-forget — it returns immediately and does not block your tool's response. When the channel is not configured, `ctx.emit` is a no-op and your code runs unchanged.
+
+```javascript
+server.tool("deploy", async (args, ask, ctx) => {
+  ctx.emit("Deployment started", {
+    eventType: "deploy_status",
+    meta: { environment: args.env, version: args.version },
+  });
+
+  // ... do deployment work ...
+
+  ctx.emit("Deployment complete", {
+    eventType: "deploy_status",
+    meta: { environment: args.env, status: "success" },
+  });
+
+  return `Deployed ${args.version} to ${args.env}`;
+});
+```
+
+### API Reference
+
+```typescript
+ctx.emit(content: string, options?: ChannelEventOptions): Promise<void>
+```
+
+| Parameter           | Type                     | Description                                                                                                                                           |
+| ------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `content`           | `string`                 | Display text for the event. Truncated to 500 characters. Empty strings are silently ignored.                                                          |
+| `options.eventType` | `string`                 | Event type identifier. Must match `[a-zA-Z0-9_]+`. Defaults to `'notification'` when omitted or invalid.                                              |
+| `options.meta`      | `Record<string, string>` | Key/value metadata. All keys must match `[a-zA-Z0-9_]+` and all values must be strings — any violation causes the entire emit call to no-op silently. |
+
+`ctx.emit` returns immediately — the HTTP request to the channel endpoint runs in the background using `waitUntil`. No-ops silently when the channel is not configured.
+
+### Advanced Usage
+
+`createEmit` is exported directly for custom integrations, such as wiring channel events outside of a tool handler.
+
+```javascript
+import { createEmit } from "@mctx-ai/mcp-server";
+
+// Bind emit to the Worker environment and execution context
+const emit = createEmit(env, executionCtx);
+
+await emit("User completed onboarding", {
+  eventType: "milestone",
+  meta: { user_id: "u_123" },
+});
+```
+
+`createEmit` returns a no-op when `MCTX_EVENTS_ENDPOINT`, `MCTX_SERVER_ID`, or `MCTX_EVENTS_SECRET` are missing from `env`, or when the secret is shorter than 32 characters.
+
+### Security
+
+You are responsible for sanitizing user-generated content before passing it to `ctx.emit`. The framework validates that meta key names match `[a-zA-Z0-9_]+` but does not sanitize the `content` string or meta values. Avoid passing raw user input directly.
+
+### Environment Variables
+
+These variables are injected automatically by the mctx deploy worker. You do not set them manually.
+
+| Variable               | Description                                        |
+| ---------------------- | -------------------------------------------------- |
+| `MCTX_EVENTS_ENDPOINT` | URL of the mctx channel events endpoint            |
+| `MCTX_SERVER_ID`       | Identifier for your server, used to route events   |
+| `MCTX_EVENTS_SECRET`   | HMAC-SHA256 signing secret (minimum 32 characters) |
+
+---
+
 ## Development
 
 Scaffold a new project in one command:

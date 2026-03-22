@@ -35,7 +35,7 @@ app.tool("greet", greet);
 export default { fetch: app.fetch };
 ```
 
-That's a working MCP server. The framework handles protocol negotiation, input validation, error sanitization, CORS, and capability detection. You write the business logic.
+That's a working MCP server. The framework handles protocol negotiation, input validation, error sanitization, CORS, capability detection, and real-time channel event emission. You write the business logic.
 
 ---
 

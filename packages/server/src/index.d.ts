@@ -104,6 +104,7 @@ export interface Server {
    * ```
    */
   fetch(request: Request, env?: any, ctx?: any): Promise<Response>;
+
 }
 
 /**
@@ -144,6 +145,59 @@ export interface ServerOptions {
 export function createServer(options?: ServerOptions): Server;
 
 // ============================================================================
+// Channel Types
+// ============================================================================
+
+/**
+ * Options for the emit() function.
+ */
+export interface ChannelEventOptions {
+  /** Override the event type (default: 'notification') */
+  eventType?: string;
+  /** Key/value metadata (keys must match /^[a-zA-Z0-9_]+$/) */
+  meta?: Record<string, string>;
+}
+
+/**
+ * Channel event emission function.
+ *
+ * @example
+ * ```typescript
+ * // In a tool handler — use ctx.emit
+ * async function myTool(args: { name: string }, ask, ctx) {
+ *   await ctx.emit("Processing started", { eventType: "status", meta: { name: args.name } });
+ *   return "done";
+ * }
+ * ```
+ */
+export type EmitFunction = (content: string, options?: ChannelEventOptions) => Promise<void>;
+
+/**
+ * Regex pattern constant for valid metadata keys (/^[a-zA-Z0-9_]+$/).
+ */
+export declare const META_KEY_PATTERN: RegExp;
+
+/**
+ * Creates a channel emit function bound to the given Cloudflare Worker environment.
+ *
+ * Returns a no-op async function when MCTX_EVENTS_ENDPOINT, MCTX_SERVER_ID, or
+ * MCTX_EVENTS_SECRET are missing from `env`.
+ *
+ * @param env - Cloudflare Worker environment bindings
+ * @param executionCtx - Cloudflare Worker execution context (for waitUntil)
+ * @returns Async emit function
+ *
+ * @example
+ * ```typescript
+ * import { createEmit } from '@mctx-ai/mcp-server';
+ *
+ * const emit = createEmit(env, ctx);
+ * await emit("Something happened", { eventType: "alert", meta: { severity: "high" } });
+ * ```
+ */
+export declare function createEmit(env: any, executionCtx?: any): EmitFunction;
+
+// ============================================================================
 // Context Types
 // ============================================================================
 
@@ -157,6 +211,12 @@ export interface McpContext {
    * Undefined when no user ID header is present.
    */
   userId?: string;
+  /**
+   * Channel event emission function for this request.
+   * Sends real-time events to mctx channel subscribers.
+   * No-op when channel is not configured (missing env vars).
+   */
+  emit: EmitFunction;
 }
 
 // ============================================================================

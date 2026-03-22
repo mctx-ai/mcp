@@ -19,6 +19,7 @@ import {
   sanitizeInput,
 } from "./security.js";
 import { createAsk } from "./sampling.js";
+import { createEmit } from "./channel.js";
 
 /**
  * HTTP Security Headers
@@ -790,14 +791,11 @@ export function createServer(options = {}) {
    * Route JSON-RPC request to appropriate handler
    * @param {Object} request - JSON-RPC request
    * @param {string|null} sessionId - MCP session ID from request header
-   * @param {string|undefined} userId - User ID from X-Mctx-User-Id request header
+   * @param {Object} ctx - Request context (userId, emit) built in fetch()
    * @returns {Promise<Object>} Response result
    */
-  async function route(request, sessionId, userId) {
+  async function route(request, sessionId, ctx) {
     const { method, params, _meta } = request;
-
-    // Build context object passed as third arg to all handlers
-    const ctx = { userId };
 
     switch (method) {
       case "initialize":
@@ -853,11 +851,11 @@ export function createServer(options = {}) {
   /**
    * Cloudflare Worker fetch handler
    * @param {Request} request - HTTP request
-   * @param {Object} _env - Environment variables (unused, reserved for Cloudflare Workers interface)
-   * @param {Object} _ctx - Execution context
+   * @param {Object} env - Environment variables (Cloudflare Workers env bindings)
+   * @param {Object} executionCtx - Execution context (Cloudflare Workers ctx)
    * @returns {Promise<Response>} HTTP response
    */
-  async function fetch(request, _env, _ctx) {
+  async function fetch(request, env, executionCtx) {
     // Only accept POST requests
     if (request.method !== "POST") {
       return new Response(
@@ -881,6 +879,12 @@ export function createServer(options = {}) {
 
     // Extract user ID from request header injected by mctx dispatch worker
     const userId = request.headers.get("x-mctx-user-id") || undefined;
+
+    // Create channel emit function bound to this request's env and execution context
+    const emit = createEmit(env, executionCtx);
+
+    // Build context object passed as third arg to all handlers
+    const ctx = { userId, emit };
 
     let rpcRequest;
     let rawBody;
@@ -932,7 +936,7 @@ export function createServer(options = {}) {
 
     try {
       // Route request
-      const result = await route(rpcRequest, sessionId, userId);
+      const result = await route(rpcRequest, sessionId, ctx);
 
       // NOTE: Log buffer is intentionally NOT cleared here.
       // Consumers (e.g. dev server) are responsible for reading and clearing the

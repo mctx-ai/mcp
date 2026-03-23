@@ -16,4 +16,4 @@ export { T, buildInputSchema } from "./types.js";
 export { conversation } from "./conversation.js";
 export { createProgress, PROGRESS_DEFAULTS } from "./progress.js";
 export { log, getLogBuffer, clearLogBuffer } from "./log.js";
-export { createEmit, META_KEY_PATTERN } from "./channel.js";
+export { createEmit, createCancel, META_KEY_PATTERN } from "./channel.js";

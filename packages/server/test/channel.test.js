@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { createEmit, META_KEY_PATTERN } from "../src/channel.js";
+import { createEmit, createCancel, META_KEY_PATTERN } from "../src/channel.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -508,5 +508,287 @@ describe("META_KEY_PATTERN", () => {
     expect(META_KEY_PATTERN.test("foo@bar")).toBe(false);
     expect(META_KEY_PATTERN.test("foo/bar")).toBe(false);
     expect(META_KEY_PATTERN.test("foo#bar")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 8. emit() — deliverAt option
+// ---------------------------------------------------------------------------
+
+describe("emit() deliverAt option", () => {
+  it("passes deliver_at in payload when deliverAt is a valid positive number", async () => {
+    const emit = createEmit(makeEnv());
+    await emit("hello", { deliverAt: 1700000000000 });
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    const [, options] = mockFetch.mock.calls[0];
+    const body = JSON.parse(options.body);
+    expect(body.deliver_at).toBe(1700000000000);
+  });
+
+  it("sets deliver_at to null when deliverAt is not provided", async () => {
+    const emit = createEmit(makeEnv());
+    await emit("hello");
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    const [, options] = mockFetch.mock.calls[0];
+    const body = JSON.parse(options.body);
+    expect(body.deliver_at).toBeNull();
+  });
+
+  it("sets deliver_at to null when deliverAt is 0 (not positive)", async () => {
+    const emit = createEmit(makeEnv());
+    await emit("hello", { deliverAt: 0 });
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    const [, options] = mockFetch.mock.calls[0];
+    const body = JSON.parse(options.body);
+    expect(body.deliver_at).toBeNull();
+  });
+
+  it("sets deliver_at to null when deliverAt is negative", async () => {
+    const emit = createEmit(makeEnv());
+    await emit("hello", { deliverAt: -1 });
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    const [, options] = mockFetch.mock.calls[0];
+    const body = JSON.parse(options.body);
+    expect(body.deliver_at).toBeNull();
+  });
+
+  it("sets deliver_at to null when deliverAt is a non-number string", async () => {
+    const emit = createEmit(makeEnv());
+    // @ts-ignore — intentionally passing invalid type
+    await emit("hello", { deliverAt: "not-a-number" });
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    const [, options] = mockFetch.mock.calls[0];
+    const body = JSON.parse(options.body);
+    expect(body.deliver_at).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 9. emit() — key option
+// ---------------------------------------------------------------------------
+
+describe("emit() key option", () => {
+  it("passes key in payload when key matches META_KEY_PATTERN", async () => {
+    const emit = createEmit(makeEnv());
+    await emit("hello", { key: "my_event_key" });
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    const [, options] = mockFetch.mock.calls[0];
+    const body = JSON.parse(options.body);
+    expect(body.key).toBe("my_event_key");
+  });
+
+  it("passes key in payload when key is a valid UUID", async () => {
+    const emit = createEmit(makeEnv());
+    await emit("hello", { key: "550e8400-e29b-41d4-a716-446655440000" });
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    const [, options] = mockFetch.mock.calls[0];
+    const body = JSON.parse(options.body);
+    expect(body.key).toBe("550e8400-e29b-41d4-a716-446655440000");
+  });
+
+  it("sets key to null when key is not provided", async () => {
+    const emit = createEmit(makeEnv());
+    await emit("hello");
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    const [, options] = mockFetch.mock.calls[0];
+    const body = JSON.parse(options.body);
+    expect(body.key).toBeNull();
+  });
+
+  it("sets key to null when key is an empty string", async () => {
+    const emit = createEmit(makeEnv());
+    await emit("hello", { key: "" });
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    const [, options] = mockFetch.mock.calls[0];
+    const body = JSON.parse(options.body);
+    expect(body.key).toBeNull();
+  });
+
+  it("sets key to null when key contains invalid characters (hyphens, not UUID)", async () => {
+    const emit = createEmit(makeEnv());
+    await emit("hello", { key: "invalid-key!" });
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    const [, options] = mockFetch.mock.calls[0];
+    const body = JSON.parse(options.body);
+    expect(body.key).toBeNull();
+  });
+
+  it("sets key to null when key is a non-string", async () => {
+    const emit = createEmit(makeEnv());
+    // @ts-ignore — intentionally passing invalid type
+    await emit("hello", { key: 42 });
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    const [, options] = mockFetch.mock.calls[0];
+    const body = JSON.parse(options.body);
+    expect(body.key).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 10. createCancel() factory
+// ---------------------------------------------------------------------------
+
+describe("createCancel() factory", () => {
+  it("returns a function when all required env vars are present", () => {
+    const cancel = createCancel(makeEnv());
+    expect(typeof cancel).toBe("function");
+  });
+
+  it("returns a function when env + executionCtx are both provided", () => {
+    const ctx = { waitUntil: vi.fn() };
+    const cancel = createCancel(makeEnv(), ctx);
+    expect(typeof cancel).toBe("function");
+  });
+
+  it("returns a no-op function when env is null", () => {
+    const cancel = createCancel(null);
+    expect(typeof cancel).toBe("function");
+  });
+
+  it("returns a no-op when MCTX_EVENTS_ENDPOINT is missing", () => {
+    const cancel = createCancel(makeEnv({ MCTX_EVENTS_ENDPOINT: undefined }));
+    expect(typeof cancel).toBe("function");
+  });
+
+  it("returns a no-op when MCTX_SERVER_ID is missing", () => {
+    const cancel = createCancel(makeEnv({ MCTX_SERVER_ID: undefined }));
+    expect(typeof cancel).toBe("function");
+  });
+
+  it("returns a no-op when MCTX_EVENTS_SECRET is missing", () => {
+    const cancel = createCancel(makeEnv({ MCTX_EVENTS_SECRET: undefined }));
+    expect(typeof cancel).toBe("function");
+  });
+
+  it("no-op resolves without calling fetch", async () => {
+    const cancel = createCancel(makeEnv({ MCTX_EVENTS_ENDPOINT: undefined }));
+    await cancel("some-key");
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("returns a no-op when secret is shorter than 32 chars", async () => {
+    const cancel = createCancel(makeEnv({ MCTX_EVENTS_SECRET: "tooshort" }));
+    await cancel("some-key");
+    await new Promise((r) => setTimeout(r, 0));
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 11. cancel() — behavior
+// ---------------------------------------------------------------------------
+
+describe("cancel() behavior", () => {
+  it("POSTs to {MCTX_EVENTS_ENDPOINT}/cancel", async () => {
+    const endpoint = "https://events.example.com/v1/emit";
+    const cancel = createCancel(makeEnv({ MCTX_EVENTS_ENDPOINT: endpoint }));
+    await cancel("my-key");
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      `${endpoint}/cancel`,
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("sends payload with server_id, key, and nonce", async () => {
+    const cancel = createCancel(makeEnv());
+    await cancel("my_event_key");
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    const [, options] = mockFetch.mock.calls[0];
+    const body = JSON.parse(options.body);
+
+    expect(body).toMatchObject({
+      server_id: "server-abc",
+      key: "my_event_key",
+      nonce: "test-nonce-uuid",
+    });
+  });
+
+  it("sends X-Events-Signature header in sha256=<hex> format", async () => {
+    const cancel = createCancel(makeEnv());
+    await cancel("my_event_key");
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "X-Events-Signature": `sha256=${cryptoSubtle._expectedHex}`,
+        }),
+      }),
+    );
+  });
+
+  it("silently no-ops on empty key string", async () => {
+    const cancel = createCancel(makeEnv());
+    await cancel("");
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("silently no-ops on non-string key", async () => {
+    const cancel = createCancel(makeEnv());
+    // @ts-ignore — intentionally passing invalid type
+    await cancel(42);
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("calls executionCtx.waitUntil with a Promise when ctx is provided", async () => {
+    const ctx = { waitUntil: vi.fn() };
+    const cancel = createCancel(makeEnv(), ctx);
+    await cancel("my-key");
+
+    expect(ctx.waitUntil).toHaveBeenCalledTimes(1);
+    const arg = ctx.waitUntil.mock.calls[0][0];
+    expect(arg).toBeInstanceOf(Promise);
+  });
+
+  it("fires fetch even when no executionCtx is provided", async () => {
+    const cancel = createCancel(makeEnv()); // no ctx
+    await cancel("my-key");
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not throw when fetch throws a network error", async () => {
+    mockFetch.mockRejectedValue(new Error("network failure"));
+    const cancel = createCancel(makeEnv());
+
+    await expect(cancel("my-key")).resolves.toBeUndefined();
+    await new Promise((r) => setTimeout(r, 0));
   });
 });

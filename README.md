@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>Build MCP servers with an Express-like API.</strong>
+  <strong>Build Apps for AI with an Express-like API.</strong>
 </p>
 
 <p align="center">
@@ -35,7 +35,7 @@ app.tool("greet", greet);
 export default { fetch: app.fetch };
 ```
 
-That's a working MCP server. The framework handles protocol negotiation, input validation, error sanitization, CORS, capability detection, and real-time channel event emission. You write the business logic.
+That's a working app. The framework handles MCP protocol negotiation, input validation, error sanitization, CORS, capability detection, and real-time channel event emission. You write the business logic.
 
 ---
 
@@ -209,11 +209,11 @@ The `ctx` parameter is available on all handler types: tools, resources, and pro
 
 ## Development
 
-Scaffold a new project:
+Scaffold a new app:
 
 ```bash
-npm create mctx-server my-server
-cd my-server
+npm create mctx-server my-app
+cd my-app
 npm install
 npm run dev
 ```
@@ -224,21 +224,21 @@ npm run dev
 
 ## Deploy
 
-Push to GitHub and connect your repo at [mctx.ai](https://mctx.ai). Set your price per request and start earning.
+Push to GitHub and connect your repo at [mctx.ai](https://mctx.ai). Your app goes live on the marketplace — set your price per request and start earning.
 
 Full deployment guide at [docs.mctx.ai](https://docs.mctx.ai).
 
 ---
 
-## Making Your Server Discoverable
+## Making Your App Discoverable
 
-Your `package.json` fields directly affect how your server appears on [mctx.ai](https://mctx.ai), in search engines, and in AI assistant recommendations. Get these right and subscribers find you.
+Your `package.json` fields directly affect how your app appears on [mctx.ai](https://mctx.ai), in search engines, and in AI assistant recommendations. Get these right and subscribers find you.
 
-**`description`** — This is marketing copy for potential subscribers _and_ an SEO field that Google indexes. You have 1,000 characters — use them. Write to sell: what your server does, specific capabilities, use cases, and the value it provides. This also appears in the [MCP Community Registry](https://registry.modelcontextprotocol.io), but display truncates around 100–150 characters, so front-load the most compelling information.
+**`description`** — This is marketing copy for potential subscribers _and_ an SEO field that Google indexes. You have 1,000 characters — use them. Write to sell: what your app does, specific capabilities, use cases, and the value it provides. This also appears in the [MCP Community Registry](https://registry.modelcontextprotocol.io), but display truncates around 100–150 characters, so front-load the most compelling information.
 
-**`homepage`** (optional) — Appears as a clickable link on your public mctx.ai server page. Set it to a project website or your GitHub repo URL. If your repo is private, leave this unset — private repo URLs show a 404 to visitors.
+**`homepage`** (optional) — Appears as a clickable link on your public mctx.ai app page. Set it to a project website or your GitHub repo URL. If your repo is private, leave this unset — private repo URLs show a 404 to visitors.
 
-**`README.md`** — Displayed on your public mctx.ai server page and submitted to [Context7](https://context7.com) for AI assistant discovery. Write it as real documentation: what the server does, what tools it provides, use cases, prerequisites. Lead with the most important information — the first ~4,000 characters are what AI assistants use when recommending your server to developers.
+**`README.md`** — Displayed on your public mctx.ai app page and submitted to [Context7](https://context7.com) for AI assistant discovery. Write it as real documentation: what your app does, what tools it provides, use cases, prerequisites. Lead with the most important information — the first ~4,000 characters are what AI assistants use when recommending your app to developers.
 
 See [docs.mctx.ai](https://docs.mctx.ai) for detailed guidance on all discoverability fields.
 
@@ -247,7 +247,7 @@ See [docs.mctx.ai](https://docs.mctx.ai) for detailed guidance on all discoverab
 ## Links
 
 - [Documentation](https://docs.mctx.ai)
-- [Example Server](https://github.com/mctx-ai/example-mcp-server)
+- [Example App](https://github.com/mctx-ai/example-mcp-server)
 - [GitHub Issues](https://github.com/mctx-ai/mcp-server/issues)
 
 ---

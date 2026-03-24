@@ -1257,6 +1257,101 @@ describe("initialize", () => {
     expect(data.result.capabilities.prompts).toBeUndefined();
     expect(data.result.capabilities.logging).toBeDefined();
   });
+
+  it("includes channels capability when all three env vars are set with a valid secret", async () => {
+    const app = createServer();
+
+    const request = createRequest({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+    });
+
+    const env = {
+      MCTX_EVENTS_ENDPOINT: "https://events.example.com",
+      MCTX_SERVER_ID: "server-123",
+      MCTX_EVENTS_SECRET: "a".repeat(32),
+    };
+    const response = await app.fetch(request, env);
+    const data = await response.json();
+
+    expect(data.result.capabilities.channels).toBeDefined();
+  });
+
+  it("omits channels capability when MCTX_EVENTS_ENDPOINT is absent from env", async () => {
+    const app = createServer();
+
+    const request = createRequest({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+    });
+
+    const response = await app.fetch(request);
+    const data = await response.json();
+
+    expect(data.result.capabilities.channels).toBeUndefined();
+  });
+
+  it("omits channels capability when env has endpoint but MCTX_SERVER_ID is missing", async () => {
+    const app = createServer();
+
+    const request = createRequest({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+    });
+
+    const env = {
+      MCTX_EVENTS_ENDPOINT: "https://events.example.com",
+      MCTX_EVENTS_SECRET: "a".repeat(32),
+      // MCTX_SERVER_ID intentionally omitted
+    };
+    const response = await app.fetch(request, env);
+    const data = await response.json();
+
+    expect(data.result.capabilities.channels).toBeUndefined();
+  });
+
+  it("omits channels capability when env has endpoint but MCTX_EVENTS_SECRET is missing", async () => {
+    const app = createServer();
+
+    const request = createRequest({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+    });
+
+    const env = {
+      MCTX_EVENTS_ENDPOINT: "https://events.example.com",
+      MCTX_SERVER_ID: "server-123",
+      // MCTX_EVENTS_SECRET intentionally omitted
+    };
+    const response = await app.fetch(request, env);
+    const data = await response.json();
+
+    expect(data.result.capabilities.channels).toBeUndefined();
+  });
+
+  it("omits channels capability when MCTX_EVENTS_SECRET is shorter than 32 characters", async () => {
+    const app = createServer();
+
+    const request = createRequest({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+    });
+
+    const env = {
+      MCTX_EVENTS_ENDPOINT: "https://events.example.com",
+      MCTX_SERVER_ID: "server-123",
+      MCTX_EVENTS_SECRET: "tooshort", // only 8 chars, below the 32-char minimum
+    };
+    const response = await app.fetch(request, env);
+    const data = await response.json();
+
+    expect(data.result.capabilities.channels).toBeUndefined();
+  });
 });
 
 describe("initialized notification", () => {

@@ -73,6 +73,54 @@ describe("full server integration", () => {
     );
   });
 
+  it("includes channels capability in initialize response when all channel env vars are configured", async () => {
+    const app = createServer();
+
+    const initRequest = createRequest({
+      jsonrpc: "2.0",
+      id: 0,
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-11-25",
+        capabilities: {},
+        clientInfo: { name: "test-client", version: "1.0" },
+      },
+    });
+
+    const env = {
+      MCTX_EVENTS_ENDPOINT: "https://events.example.com",
+      MCTX_SERVER_ID: "server-123",
+      MCTX_EVENTS_SECRET: "a".repeat(32),
+    };
+    const initResponse = await app.fetch(initRequest, env);
+    const initData = await initResponse.json();
+
+    expect(initData.result.capabilities.channels).toBeDefined();
+    expect(initData.result.capabilities.logging).toBeDefined();
+  });
+
+  it("omits channels capability in initialize response when no env is passed", async () => {
+    const app = createServer();
+
+    const initRequest = createRequest({
+      jsonrpc: "2.0",
+      id: 0,
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-11-25",
+        capabilities: {},
+        clientInfo: { name: "test-client", version: "1.0" },
+      },
+    });
+
+    // No env argument — channels should not be advertised
+    const initResponse = await app.fetch(initRequest);
+    const initData = await initResponse.json();
+
+    expect(initData.result.capabilities.channels).toBeUndefined();
+    expect(initData.result.capabilities.logging).toBeDefined();
+  });
+
   it("creates server with tools, resources, and prompts", async () => {
     const app = createServer();
 

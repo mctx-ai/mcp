@@ -699,9 +699,10 @@ export function createServer(options = {}) {
    * Handle initialize request
    * Auto-detects capabilities from registered tools/resources/prompts
    * @param {Object} params - Initialize params (clientInfo, capabilities, etc.)
+   * @param {Object} [env] - Environment bindings (Cloudflare Workers env)
    * @returns {Object} Server capabilities and info
    */
-  function handleInitialize(params) {
+  function handleInitialize(params, env) {
     // Store client capabilities for use during handler dispatch
     clientCapabilities = (params && params.capabilities) || {};
 
@@ -732,6 +733,19 @@ export function createServer(options = {}) {
     // Advertise sampling capability — the server supports LLM-in-the-loop
     // via the ask() function if the client also supports sampling
     capabilities.sampling = {};
+
+    // Add channels capability when channel emission is fully configured.
+    // Mirrors the createEmit guard in channel.js: all three env vars must be
+    // present AND the secret must be at least 32 characters.
+    if (
+      env &&
+      env.MCTX_EVENTS_ENDPOINT &&
+      env.MCTX_SERVER_ID &&
+      env.MCTX_EVENTS_SECRET &&
+      env.MCTX_EVENTS_SECRET.length >= 32
+    ) {
+      capabilities.channels = {};
+    }
 
     // Build response
     const response = {
@@ -792,14 +806,15 @@ export function createServer(options = {}) {
    * @param {Object} request - JSON-RPC request
    * @param {string|null} sessionId - MCP session ID from request header
    * @param {Object} ctx - Request context (userId, emit) built in fetch()
+   * @param {Object} [env] - Environment bindings (Cloudflare Workers env)
    * @returns {Promise<Object>} Response result
    */
-  async function route(request, sessionId, ctx) {
+  async function route(request, sessionId, ctx, env) {
     const { method, params, _meta } = request;
 
     switch (method) {
       case "initialize":
-        return handleInitialize(params);
+        return handleInitialize(params, env);
 
       case "initialized":
         // Notification - no response needed
@@ -939,7 +954,7 @@ export function createServer(options = {}) {
 
     try {
       // Route request
-      const result = await route(rpcRequest, sessionId, ctx);
+      const result = await route(rpcRequest, sessionId, ctx, env);
 
       // NOTE: Log buffer is intentionally NOT cleared here.
       // Consumers (e.g. dev server) are responsible for reading and clearing the

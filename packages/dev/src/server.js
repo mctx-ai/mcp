@@ -552,7 +552,7 @@ ${colors.bright}Test with curl:${colors.reset}
 ${colors.bright}Claude Desktop config${colors.reset} ${colors.dim}(~/.config/claude/claude_desktop_config.json):${colors.reset}
   ${colors.dim}{
     "mcpServers": {
-      "my-server": {
+      "my-app": {
         "command": "npx",
         "args": ["mctx-dev", "${entryPath}"]
       }

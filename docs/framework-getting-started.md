@@ -72,7 +72,7 @@ Update your `package.json` with the fields mctx needs to deploy your server:
 
 ```json
 {
-  "name": "my-server",
+  "name": "my-app",
   "version": "0.1.0",
   "description": "My first MCP server",
   "main": "dist/index.js",

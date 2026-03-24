@@ -224,7 +224,7 @@ npm run dev
 
 ## Deploy
 
-Push to GitHub and connect your repo at [mctx.ai](https://mctx.ai). Your app goes live on the marketplace — set your price per request and start earning.
+Push to GitHub and connect your repo at [mctx.ai](https://mctx.ai). Your App goes live — you keep 80% of every subscription.
 
 Full deployment guide at [docs.mctx.ai](https://docs.mctx.ai).
 

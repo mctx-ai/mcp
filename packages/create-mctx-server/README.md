@@ -37,7 +37,7 @@ Your MCP server is running. Edit `index.js` to add your tools.
 
 ## Deploy
 
-Connect your GitHub repo at [mctx.ai](https://mctx.ai) and deploy. Set your price and start earning — you keep 80%. Full deployment docs at [docs.mctx.ai](https://docs.mctx.ai).
+Connect your GitHub repo at [mctx.ai](https://mctx.ai) and deploy. You keep 80% of every subscription. Full deployment docs at [docs.mctx.ai](https://docs.mctx.ai).
 
 ## Links
 

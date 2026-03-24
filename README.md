@@ -247,7 +247,7 @@ See [docs.mctx.ai](https://docs.mctx.ai) for detailed guidance on all discoverab
 ## Links
 
 - [Documentation](https://docs.mctx.ai)
-- [Example App](https://github.com/mctx-ai/example-mcp-server)
+- [Example App](https://github.com/mctx-ai/example-app)
 - [GitHub Issues](https://github.com/mctx-ai/app/issues)
 
 ---
@@ -256,4 +256,3 @@ See [docs.mctx.ai](https://docs.mctx.ai) for detailed guidance on all discoverab
   mctx is a trademark of mctx, Inc.<br/>
   Licensed under MIT
 </p>
-

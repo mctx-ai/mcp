@@ -325,7 +325,7 @@ Full deployment guide at [docs.mctx.ai](https://docs.mctx.ai).
 ## Links
 
 - [Documentation](https://docs.mctx.ai)
-- [Example Server](https://github.com/mctx-ai/example-mcp-server)
+- [Example Server](https://github.com/mctx-ai/example-app)
 - [GitHub Issues](https://github.com/mctx-ai/app/issues)
 - [Feedback](https://github.com/mctx-ai/feedback)
 

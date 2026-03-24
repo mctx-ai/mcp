@@ -5,7 +5,7 @@ description: Build your first MCP server in under 5 minutes using @mctx-ai/app. 
 
 By the end of this page, you will have a working MCP server that AI assistants can talk to. It takes about 13 lines of code.
 
-> **Prefer a template?** The [example-mcp-server](https://github.com/mctx-ai/example-mcp-server) is a GitHub template — click "Use this template" to get a pre-configured project with CI/CD already set up.
+> **Prefer a template?** The [example-app](https://github.com/mctx-ai/example-app) is a GitHub template — click "Use this template" to get a pre-configured project with CI/CD already set up.
 
 ## Set up your project
 
@@ -131,4 +131,4 @@ Now that you have a working server, here is where to go next:
 - **[Tools, Resources, and Prompts](/building-apps/tools-and-resources)** -- learn the three building blocks that make MCP servers powerful, with real-world examples
 - **[Server Requirements](/building-apps/server-requirements)** -- the complete checklist of what mctx expects from your project
 - **[Framework API Reference](./framework-api-reference.md)** -- every export, type, and option documented
-- **[Example Server](https://github.com/mctx-ai/example-mcp-server)** -- a template repository you can use to start your own server. Click "Use this template" on GitHub, then run `setup.sh` to customize your project
+- **[Example Server](https://github.com/mctx-ai/example-app)** -- a template repository you can use to start your own server. Click "Use this template" on GitHub, then run `setup.sh` to customize your project

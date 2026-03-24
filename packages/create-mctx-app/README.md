@@ -11,7 +11,7 @@
 ---
 
 ```bash
-npm create mctx-server my-server
+npm create mctx-app my-server
 ```
 
 ## What you get
@@ -27,7 +27,7 @@ npm create mctx-server my-server
 ## Get running
 
 ```bash
-npm create mctx-server my-server
+npm create mctx-app my-server
 cd my-server
 npm install
 npm run dev
@@ -43,7 +43,7 @@ Connect your GitHub repo at [mctx.ai](https://mctx.ai) and deploy. You keep 80% 
 
 - [Framework docs](https://docs.mctx.ai) — tools, resources, prompts, and more
 - [@mctx-ai/app](https://github.com/mctx-ai/app) — the framework powering your server
-- [Example server](https://github.com/mctx-ai/example-mcp-server) — a complete reference implementation
+- [Example server](https://github.com/mctx-ai/example-app) — a complete reference implementation
 - [Feedback](https://github.com/mctx-ai/feedback) — ideas, bugs, questions
 
 ---

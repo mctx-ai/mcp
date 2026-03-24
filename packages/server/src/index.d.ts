@@ -156,6 +156,17 @@ export interface ChannelEventOptions {
   eventType?: string;
   /** Key/value metadata (keys must match /^[a-zA-Z0-9_]+$/) */
   meta?: Record<string, string>;
+  /**
+   * Unix timestamp (milliseconds) for scheduled delivery.
+   * Must be a positive number. Silently ignored if invalid.
+   */
+  deliverAt?: number;
+  /**
+   * Correlation key for deduplication and cancellation.
+   * Must be a non-empty string matching /^[a-zA-Z0-9_]+$/ or UUID format.
+   * Silently ignored if invalid.
+   */
+  key?: string;
 }
 
 /**
@@ -197,6 +208,41 @@ export declare const META_KEY_PATTERN: RegExp;
  */
 export declare function createEmit(env: any, executionCtx?: any): EmitFunction;
 
+/**
+ * Channel event cancellation function.
+ * Cancels a pending scheduled channel event by its correlation key.
+ *
+ * @example
+ * ```typescript
+ * // In a tool handler — use ctx.cancel
+ * async function myTool(args: { key: string }, ask, ctx) {
+ *   await ctx.cancel(args.key);
+ *   return "cancelled";
+ * }
+ * ```
+ */
+export type CancelFunction = (key: string) => Promise<void>;
+
+/**
+ * Creates a channel cancel function bound to the given Cloudflare Worker environment.
+ *
+ * Returns a no-op async function when MCTX_EVENTS_ENDPOINT, MCTX_SERVER_ID, or
+ * MCTX_EVENTS_SECRET are missing from `env`.
+ *
+ * @param env - Cloudflare Worker environment bindings
+ * @param executionCtx - Cloudflare Worker execution context (for waitUntil)
+ * @returns Async cancel function
+ *
+ * @example
+ * ```typescript
+ * import { createCancel } from '@mctx-ai/mcp-server';
+ *
+ * const cancel = createCancel(env, ctx);
+ * await cancel("my-event-key");
+ * ```
+ */
+export declare function createCancel(env: any, executionCtx?: any): CancelFunction;
+
 // ============================================================================
 // Context Types
 // ============================================================================
@@ -217,6 +263,12 @@ export interface McpContext {
    * No-op when channel is not configured (missing env vars).
    */
   emit: EmitFunction;
+  /**
+   * Channel event cancellation function for this request.
+   * Cancels a pending scheduled channel event by its correlation key.
+   * No-op when channel is not configured (missing env vars).
+   */
+  cancel: CancelFunction;
 }
 
 // ============================================================================

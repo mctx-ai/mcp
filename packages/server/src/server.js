@@ -19,7 +19,7 @@ import {
   sanitizeInput,
 } from "./security.js";
 import { createAsk } from "./sampling.js";
-import { createEmit } from "./channel.js";
+import { createEmit, createCancel } from "./channel.js";
 
 /**
  * HTTP Security Headers
@@ -883,8 +883,11 @@ export function createServer(options = {}) {
     // Create channel emit function bound to this request's env and execution context
     const emit = createEmit(env, executionCtx);
 
+    // Create channel cancel function bound to this request's env and execution context
+    const cancel = createCancel(env, executionCtx);
+
     // Build context object passed as third arg to all handlers
-    const ctx = { userId, emit };
+    const ctx = { userId, emit, cancel };
 
     let rpcRequest;
     let rawBody;

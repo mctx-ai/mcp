@@ -1,5 +1,5 @@
 /**
- * @mctx-ai/mcp-dev File Watcher
+ * @mctx-ai/dev File Watcher
  *
  * Watches project files for changes and triggers hot reload.
  * Uses Node's built-in fs.watch with debouncing to avoid rapid reloads.

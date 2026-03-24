@@ -36,9 +36,9 @@ Note: npm is included with Node.js, so no additional setup action is required.
 
 Three npm workspaces in `packages/` (defined via `"workspaces": ["packages/*"]` in root `package.json`):
 
-- **`@mctx-ai/mcp-server`** (`packages/server/`) — Core framework. Zero runtime dependencies. Exports `createServer`, `T`, `conversation`, `createProgress`, `PROGRESS_DEFAULTS`, `log`, `buildInputSchema`, `getLogBuffer`, `clearLogBuffer`, `createEmit`, `META_KEY_PATTERN`. Type exports include `McpContext` (`{ userId?: string, emit: EmitFunction }`). Build is a simple `cp src/*.js src/*.d.ts dist/` (no transpilation).
-- **`@mctx-ai/mcp-dev`** (`packages/dev/`) — Dev server with hot reload, request logging, log surfacing (handler log entries printed to dev console), and sampling stub (`/_mctx/sampling` endpoint returns error in dev mode). Peer-depends on `@mctx-ai/mcp-server`. Uses Node.js built-in test runner (`node --test`), not Vitest. Lint is a stub (`echo 'Linting not configured yet'`).
-- **`create-mctx-server`** (`packages/create-mctx-server/`) — CLI scaffolding tool (`npm create mctx-server <name>`). Generates a new project with `@mctx-ai/mcp-server` + `@mctx-ai/mcp-dev` + `esbuild` configured.
+- **`@mctx-ai/app`** (`packages/server/`) — Core framework. Zero runtime dependencies. Exports `createServer`, `T`, `conversation`, `createProgress`, `PROGRESS_DEFAULTS`, `log`, `buildInputSchema`, `getLogBuffer`, `clearLogBuffer`, `createEmit`, `META_KEY_PATTERN`. Type exports include `McpContext` (`{ userId?: string, emit: EmitFunction }`). Build is a simple `cp src/*.js src/*.d.ts dist/` (no transpilation).
+- **`@mctx-ai/dev`** (`packages/dev/`) — Dev server with hot reload, request logging, log surfacing (handler log entries printed to dev console), and sampling stub (`/_mctx/sampling` endpoint returns error in dev mode). Peer-depends on `@mctx-ai/app`. Uses Node.js built-in test runner (`node --test`), not Vitest. Lint is a stub (`echo 'Linting not configured yet'`).
+- **`create-mctx-app`** (`packages/create-mctx-app/`) — CLI scaffolding tool (`npm create mctx-app <name>`). Generates a new project with `@mctx-ai/app` + `@mctx-ai/dev` + `esbuild` configured.
 
 Root commands affect all workspaces. Use `--workspace` flag for package-specific operations.
 
@@ -64,15 +64,15 @@ npm run format:check  # Check formatting without modifying
 
 ```bash
 # Testing
-npm run test --workspace=@mctx-ai/mcp-server
-npm run test:coverage --workspace=@mctx-ai/mcp-server  # V8 coverage, 80% thresholds
+npm run test --workspace=@mctx-ai/app
+npm run test:coverage --workspace=@mctx-ai/app  # V8 coverage, 80% thresholds
 npx vitest run test/uri.test.js                        # Single test file (from packages/server/)
 npx vitest run -t "test name"                          # Specific test by name
 
 # Code quality
-npm run lint --workspace=@mctx-ai/mcp-server
-npm run lint:fix --workspace=@mctx-ai/mcp-server
-npm run typecheck --workspace=@mctx-ai/mcp-server  # tsc --noEmit
+npm run lint --workspace=@mctx-ai/app
+npm run lint:fix --workspace=@mctx-ai/app
+npm run typecheck --workspace=@mctx-ai/app  # tsc --noEmit
 ```
 
 ---
@@ -244,10 +244,10 @@ No commit hooks (no husky, no lint-staged). All quality checks run in CI.
 npm test
 
 # Single package
-npm run test --workspace=@mctx-ai/mcp-server
+npm run test --workspace=@mctx-ai/app
 
 # With coverage report
-npm run test:coverage --workspace=@mctx-ai/mcp-server
+npm run test:coverage --workspace=@mctx-ai/app
 
 # Single test file
 npx vitest run test/uri.test.js
@@ -267,7 +267,7 @@ npx vitest run -t "validates URI templates correctly"
 1. **Trigger:** Push to `main` branch
 2. **CI gate:** Build, lint, test, and smoke test all three packages must pass first
 3. **Release:** `multi-semantic-release` analyzes commits, bumps versions, publishes to npm, creates GitHub releases
-4. **Post-publish check:** Waits 30s then runs `npm install @mctx-ai/mcp-server@latest --dry-run` to verify npm propagation
+4. **Post-publish check:** Waits 30s then runs `npm install @mctx-ai/app@latest --dry-run` to verify npm propagation
 
 **Concurrency:** Only one release runs at a time (`concurrency: { group: release, cancel-in-progress: false }`).
 
@@ -311,7 +311,7 @@ Trigger: push/PR to `main`. Four jobs:
 1. **`lint`** — ESLint, Prettier format check, TypeScript type check (`tsc --noEmit`), workspace validation
 2. **`test`** — Matrix: Node `22.x` × ubuntu/windows/macos (fail-fast disabled). Coverage uploaded as artifact for ubuntu (retained 7 days)
 3. **`security`** — `npm audit --audit-level=high --omit=dev` (dev deps excluded) + license check (`license-checker`, fails on GPL/AGPL)
-4. **`scaffold`** — Builds packages, runs `create-mctx-server` to generate a test project, validates generated `package.json` fields
+4. **`scaffold`** — Builds packages, runs `create-mctx-app` to generate a test project, validates generated `package.json` fields
 
 ### `release.yml` — Automated Release
 

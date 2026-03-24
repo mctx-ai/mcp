@@ -5,7 +5,7 @@
 <p align="center">Scaffold an MCP server in one command.</p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/create-mctx-server"><img src="https://img.shields.io/npm/v/create-mctx-server" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/create-mctx-app"><img src="https://img.shields.io/npm/v/create-mctx-app" alt="npm version" /></a>
 </p>
 
 ---
@@ -16,8 +16,8 @@ npm create mctx-server my-server
 
 ## What you get
 
-- `@mctx-ai/mcp-server` — the zero-dependency MCP framework
-- `@mctx-ai/mcp-dev` — hot-reload dev server with request logging
+- `@mctx-ai/app` — the zero-dependency MCP framework
+- `@mctx-ai/dev` — hot-reload dev server with request logging
 - `esbuild` — fast bundler, pre-configured
 - An example `greet` tool ready to run
 - `README.md` — starter documentation for your server
@@ -42,13 +42,13 @@ Connect your GitHub repo at [mctx.ai](https://mctx.ai) and deploy. You keep 80% 
 ## Links
 
 - [Framework docs](https://docs.mctx.ai) — tools, resources, prompts, and more
-- [@mctx-ai/mcp-server](https://github.com/mctx-ai/mcp-server) — the framework powering your server
+- [@mctx-ai/app](https://github.com/mctx-ai/app) — the framework powering your server
 - [Example server](https://github.com/mctx-ai/example-mcp-server) — a complete reference implementation
 - [Feedback](https://github.com/mctx-ai/feedback) — ideas, bugs, questions
 
 ---
 
 <p align="center">
-  <a href="https://mctx.ai">mctx</a> · <a href="https://docs.mctx.ai">Docs</a> · <a href="https://github.com/mctx-ai/mcp-server">GitHub</a><br/>
+  <a href="https://mctx.ai">mctx</a> · <a href="https://docs.mctx.ai">Docs</a> · <a href="https://github.com/mctx-ai/app">GitHub</a><br/>
   MIT License
 </p>

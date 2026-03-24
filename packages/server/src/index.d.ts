@@ -1,5 +1,5 @@
 /**
- * @mctx-ai/mcp-server TypeScript Definitions
+ * @mctx-ai/app TypeScript Definitions
  *
  * Build MCP servers with an Express-like API - no protocol knowledge required.
  */
@@ -129,7 +129,7 @@ export interface ServerOptions {
  *
  * @example
  * ```typescript
- * import { createServer, T } from '@mctx-ai/mcp-server';
+ * import { createServer, T } from '@mctx-ai/app';
  *
  * const server = createServer({
  *   instructions: "You help developers debug CI pipelines..."
@@ -200,7 +200,7 @@ export declare const META_KEY_PATTERN: RegExp;
  *
  * @example
  * ```typescript
- * import { createEmit } from '@mctx-ai/mcp-server';
+ * import { createEmit } from '@mctx-ai/app';
  *
  * const emit = createEmit(env, ctx);
  * await emit("Something happened", { eventType: "alert", meta: { severity: "high" } });
@@ -235,7 +235,7 @@ export type CancelFunction = (key: string) => Promise<void>;
  *
  * @example
  * ```typescript
- * import { createCancel } from '@mctx-ai/mcp-server';
+ * import { createCancel } from '@mctx-ai/app';
  *
  * const cancel = createCancel(env, ctx);
  * await cancel("my-event-key");
@@ -570,7 +570,7 @@ export interface ObjectOptions {
  *
  * @example
  * ```typescript
- * import { T } from '@mctx-ai/mcp-server';
+ * import { T } from '@mctx-ai/app';
  *
  * const handler = {
  *   input: {
@@ -867,7 +867,7 @@ export interface LogNotification {
  *
  * @example
  * ```typescript
- * import { getLogBuffer } from '@mctx-ai/mcp-server';
+ * import { getLogBuffer } from '@mctx-ai/app';
  *
  * const entries = getLogBuffer();
  * // => [{ type: 'log', level: 'info', data: 'Server started' }, ...]
@@ -881,7 +881,7 @@ export function getLogBuffer(): LogNotification[];
  *
  * @example
  * ```typescript
- * import { clearLogBuffer } from '@mctx-ai/mcp-server';
+ * import { clearLogBuffer } from '@mctx-ai/app';
  *
  * clearLogBuffer(); // Buffer is now empty
  * ```
@@ -894,7 +894,7 @@ export function clearLogBuffer(): void;
  *
  * @example
  * ```typescript
- * import { log } from '@mctx-ai/mcp-server';
+ * import { log } from '@mctx-ai/app';
  *
  * log.debug('Variable value:', { x: 42 });
  * log.info('Server started on port 3000');

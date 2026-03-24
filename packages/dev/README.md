@@ -2,18 +2,18 @@
   <img src="https://mctx.ai/brand/logo-black.png" width="120" alt="mctx" />
 </div>
 
-# @mctx-ai/mcp-dev
+# @mctx-ai/dev
 
-Dev server with hot reload for [@mctx-ai/mcp-server](https://www.npmjs.com/package/@mctx-ai/mcp-server).
+Dev server with hot reload for [@mctx-ai/app](https://www.npmjs.com/package/@mctx-ai/app).
 
-[![npm version](https://img.shields.io/npm/v/@mctx-ai/mcp-dev)](https://www.npmjs.com/package/@mctx-ai/mcp-dev)
+[![npm version](https://img.shields.io/npm/v/@mctx-ai/dev)](https://www.npmjs.com/package/@mctx-ai/dev)
 
 ---
 
 ## Quick Start
 
 ```bash
-npm install -D @mctx-ai/mcp-dev
+npm install -D @mctx-ai/dev
 npx mctx-dev index.js
 ```
 
@@ -71,11 +71,11 @@ Use [MCP Inspector](https://github.com/modelcontextprotocol/inspector) to test y
 
 ## Pairs With
 
-This package is the dev companion to [@mctx-ai/mcp-server](https://www.npmjs.com/package/@mctx-ai/mcp-server) — the zero-dependency MCP framework.
+This package is the dev companion to [@mctx-ai/app](https://www.npmjs.com/package/@mctx-ai/app) — the zero-dependency MCP framework.
 
 ---
 
 <p align="center">
-  <a href="https://mctx.ai">mctx</a> · <a href="https://docs.mctx.ai">Docs</a> · <a href="https://github.com/mctx-ai/mcp-server">GitHub</a><br/>
+  <a href="https://mctx.ai">mctx</a> · <a href="https://docs.mctx.ai">Docs</a> · <a href="https://github.com/mctx-ai/app">GitHub</a><br/>
   MIT License
 </p>

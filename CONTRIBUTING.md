@@ -1,4 +1,4 @@
-# Contributing to @mctx-ai/mcp-server
+# Contributing to @mctx-ai/app
 
 Thank you for your interest in contributing! I welcome contributions from the community.
 
@@ -7,8 +7,8 @@ Thank you for your interest in contributing! I welcome contributions from the co
 1. **Clone the repository:**
 
    ```bash
-   git clone https://github.com/mctx-ai/mcp-server.git
-   cd mcp-server
+   git clone https://github.com/mctx-ai/app.git
+   cd app
    ```
 
 2. **Install dependencies:**

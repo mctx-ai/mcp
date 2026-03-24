@@ -67,7 +67,7 @@ describe("full server integration", () => {
     expect(initData.result.capabilities.resources).toBeDefined();
     expect(initData.result.capabilities.prompts).toBeDefined();
     expect(initData.result.capabilities.logging).toBeDefined();
-    expect(initData.result.serverInfo.name).toBe("@mctx-ai/mcp-server");
+    expect(initData.result.serverInfo.name).toBe("@mctx-ai/app");
     expect(initData.result.instructions).toBe(
       "A comprehensive test server for calculator operations",
     );

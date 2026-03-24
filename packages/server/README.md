@@ -7,17 +7,17 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/@mctx-ai/mcp-server"><img src="https://img.shields.io/npm/v/@mctx-ai/mcp-server" alt="npm version"/></a>
-  <a href="https://www.npmjs.com/package/@mctx-ai/mcp-server"><img src="https://img.shields.io/npm/l/@mctx-ai/mcp-server" alt="license"/></a>
-  <a href="https://github.com/mctx-ai/mcp-server/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/mctx-ai/mcp-server/ci.yml" alt="CI"/></a>
+  <a href="https://www.npmjs.com/package/@mctx-ai/app"><img src="https://img.shields.io/npm/v/@mctx-ai/app" alt="npm version"/></a>
+  <a href="https://www.npmjs.com/package/@mctx-ai/app"><img src="https://img.shields.io/npm/l/@mctx-ai/app" alt="license"/></a>
+  <a href="https://github.com/mctx-ai/app/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/mctx-ai/app/ci.yml" alt="CI"/></a>
 </p>
 
 ```bash
-npm install @mctx-ai/mcp-server
+npm install @mctx-ai/app
 ```
 
 ```javascript
-import { createServer, T } from "@mctx-ai/mcp-server";
+import { createServer, T } from "@mctx-ai/app";
 
 const app = createServer({
   instructions: "A greeting server. Use the greet tool to say hello.",
@@ -103,7 +103,7 @@ app.prompt("code-review", codeReview);
 For multi-message prompts with images or embedded resources:
 
 ```javascript
-import { conversation } from "@mctx-ai/mcp-server";
+import { conversation } from "@mctx-ai/app";
 
 function debug({ error, screenshot }) {
   return conversation(({ user, ai }) => [
@@ -142,7 +142,7 @@ All types accept `required`, `description`, and `default`.
 `buildInputSchema` converts a T-based input definition into a valid JSON Schema object. The framework calls this internally, but you can use it directly when you need the schema for validation or documentation.
 
 ```javascript
-import { buildInputSchema, T } from "@mctx-ai/mcp-server";
+import { buildInputSchema, T } from "@mctx-ai/app";
 
 const schema = buildInputSchema({
   name: T.string({ required: true }),
@@ -160,7 +160,7 @@ const schema = buildInputSchema({
 Use generator functions and `createProgress()` for long-running tools.
 
 ```javascript
-import { createProgress } from "@mctx-ai/mcp-server";
+import { createProgress } from "@mctx-ai/app";
 
 function* migrate({ tables }) {
   const step = createProgress(tables.length);
@@ -180,7 +180,7 @@ app.tool("migrate", migrate);
 `PROGRESS_DEFAULTS` contains the guardrail values the framework enforces on generator tools: `maxExecutionTime` (60000ms) and `maxYields` (10000). Tools that exceed either limit are stopped automatically.
 
 ```javascript
-import { PROGRESS_DEFAULTS } from "@mctx-ai/mcp-server";
+import { PROGRESS_DEFAULTS } from "@mctx-ai/app";
 
 console.log(PROGRESS_DEFAULTS.maxExecutionTime); // 60000
 console.log(PROGRESS_DEFAULTS.maxYields); // 10000
@@ -189,7 +189,7 @@ console.log(PROGRESS_DEFAULTS.maxYields); // 10000
 ### Structured Logging
 
 ```javascript
-import { log } from "@mctx-ai/mcp-server";
+import { log } from "@mctx-ai/app";
 
 log.info("Server started");
 log.warning("Rate limit approaching");
@@ -201,7 +201,7 @@ Levels follow RFC 5424: `debug`, `info`, `notice`, `warning`, `error`, `critical
 Log entries are buffered internally. Use `getLogBuffer` to read them and `clearLogBuffer` to flush the buffer.
 
 ```javascript
-import { getLogBuffer, clearLogBuffer } from "@mctx-ai/mcp-server";
+import { getLogBuffer, clearLogBuffer } from "@mctx-ai/app";
 
 const entries = getLogBuffer();
 // entries: Array of LogNotification objects with level, logger, and data fields
@@ -270,7 +270,7 @@ ctx.emit(content: string, options?: ChannelEventOptions): Promise<void>
 `createEmit` is exported directly for custom integrations, such as wiring channel events outside of a tool handler.
 
 ```javascript
-import { createEmit } from "@mctx-ai/mcp-server";
+import { createEmit } from "@mctx-ai/app";
 
 // Bind emit to the Worker environment and execution context
 const emit = createEmit(env, executionCtx);
@@ -304,13 +304,13 @@ These variables are injected automatically by the mctx deploy worker. You do not
 Scaffold a new project in one command:
 
 ```bash
-npm create mctx-server my-server
+npm create mctx-app my-server
 cd my-server
 npm install
 npm run dev
 ```
 
-`npm run dev` starts [@mctx-ai/mcp-dev](https://www.npmjs.com/package/@mctx-ai/mcp-dev) with hot reload and request logging for local testing.
+`npm run dev` starts [@mctx-ai/dev](https://www.npmjs.com/package/@mctx-ai/dev) with hot reload and request logging for local testing.
 
 ---
 
@@ -326,12 +326,12 @@ Full deployment guide at [docs.mctx.ai](https://docs.mctx.ai).
 
 - [Documentation](https://docs.mctx.ai)
 - [Example Server](https://github.com/mctx-ai/example-mcp-server)
-- [GitHub Issues](https://github.com/mctx-ai/mcp-server/issues)
+- [GitHub Issues](https://github.com/mctx-ai/app/issues)
 - [Feedback](https://github.com/mctx-ai/feedback)
 
 ---
 
 <p align="center">
-  <a href="https://mctx.ai">mctx</a> · <a href="https://docs.mctx.ai">Docs</a> · <a href="https://github.com/mctx-ai/mcp-server">GitHub</a><br/>
+  <a href="https://mctx.ai">mctx</a> · <a href="https://docs.mctx.ai">Docs</a> · <a href="https://github.com/mctx-ai/app">GitHub</a><br/>
   MIT License
 </p>

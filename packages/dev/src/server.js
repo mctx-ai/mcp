@@ -1,5 +1,5 @@
 /**
- * @mctx-ai/mcp-dev Server
+ * @mctx-ai/dev Server
  *
  * HTTP server that wraps the app's fetch handler with developer-friendly features:
  * - Initialize handshake handling
@@ -9,7 +9,7 @@
  */
 
 import { createServer } from "http";
-import { getLogBuffer, clearLogBuffer } from "@mctx-ai/mcp-server";
+import { getLogBuffer, clearLogBuffer } from "@mctx-ai/app";
 import { watch } from "./watcher.js";
 
 // ANSI color codes for logging

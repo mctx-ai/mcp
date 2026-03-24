@@ -1,5 +1,5 @@
 /**
- * @mctx-ai/mcp-server
+ * @mctx-ai/app
  *
  * Build MCP servers with an Express-like API - no protocol knowledge required.
  *

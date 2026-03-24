@@ -1114,7 +1114,7 @@ describe("initialize", () => {
     expect(data.result.protocolVersion).toBe("2025-11-25");
     expect(data.result.capabilities).toBeDefined();
     expect(data.result.serverInfo).toBeDefined();
-    expect(data.result.serverInfo.name).toBe("@mctx-ai/mcp-server");
+    expect(data.result.serverInfo.name).toBe("@mctx-ai/app");
     expect(data.result.serverInfo.version).toBe("0.3.0");
   });
 

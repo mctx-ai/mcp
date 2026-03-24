@@ -9,7 +9,7 @@ const version = selfPkg.version;
 const projectName = process.argv[2];
 
 if (!projectName) {
-  console.error("Usage: npm create mctx-server <project-name>");
+  console.error("Usage: npm create mctx-app <project-name>");
   process.exit(1);
 }
 
@@ -25,7 +25,7 @@ mkdirSync(projectName, { recursive: true });
 const packageJson = {
   name: projectName,
   version: "0.0.1",
-  description: "An MCP server built with @mctx-ai/mcp-server",
+  description: "An App built with @mctx-ai/app",
   type: "module",
   main: "dist/index.js",
   scripts: {
@@ -34,10 +34,10 @@ const packageJson = {
       "esbuild index.js --bundle --minify --platform=node --format=esm --outfile=dist/index.js",
   },
   dependencies: {
-    "@mctx-ai/mcp-server": `^${version}`,
+    "@mctx-ai/app": `^${version}`,
   },
   devDependencies: {
-    "@mctx-ai/mcp-dev": `^${version}`,
+    "@mctx-ai/dev": `^${version}`,
     esbuild: "^0.27.0",
   },
   engines: {
@@ -48,7 +48,7 @@ const packageJson = {
 writeFileSync(join(projectName, "package.json"), JSON.stringify(packageJson, null, 2) + "\n");
 
 // Generate index.js
-const indexJs = `import { createServer, T } from '@mctx-ai/mcp-server';
+const indexJs = `import { createServer, T } from '@mctx-ai/app';
 
 const app = createServer({
   instructions: 'This server provides a simple greeting tool. Use the greet tool to say hello to someone by name.',
@@ -81,7 +81,7 @@ writeFileSync(join(projectName, ".gitignore"), gitignore);
 // Generate README.md
 const readme = `# ${projectName}
 
-An MCP server built with [@mctx-ai/mcp-server](https://github.com/mctx-ai/mcp-server).
+An App built with [@mctx-ai/app](https://github.com/mctx-ai/app).
 
 ## Development
 
@@ -101,7 +101,7 @@ npx mctx-dev index.js --port 8080
 ## Add a Tool
 
 \`\`\`javascript
-import { T } from '@mctx-ai/mcp-server';
+import { T } from '@mctx-ai/app';
 import app from './index.js';
 
 // Handlers receive ({ field1, field2 }, ask):
@@ -133,8 +133,8 @@ This bundles your server into a single \`dist/index.js\` file ready for deployme
 
 ## Learn More
 
-- [Framework Docs](https://docs.mctx.ai/docs/building-mcp-servers/framework-getting-started)
-- [API Reference](https://docs.mctx.ai/docs/building-mcp-servers/framework-api-reference)
+- [Framework Docs](https://docs.mctx.ai/docs/building-apps/framework-getting-started)
+- [API Reference](https://docs.mctx.ai/docs/building-apps/framework-api-reference)
 - [MCP Specification](https://modelcontextprotocol.io)
 `;
 

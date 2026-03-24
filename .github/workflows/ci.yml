@@ -34,7 +34,7 @@ jobs:
         run: npm run format:check
 
       - name: Type check
-        run: npm run typecheck --workspace=@mctx-ai/mcp-server
+        run: npm run typecheck --workspace=@mctx-ai/app
 
       - name: Validate workspaces
         run: |
@@ -66,7 +66,7 @@ jobs:
         run: npm run build
 
       - name: Run tests with coverage
-        run: npm run test:coverage --workspace=@mctx-ai/mcp-server
+        run: npm run test:coverage --workspace=@mctx-ai/app
 
       - name: Upload coverage report
         if: matrix.node == '22.x' && matrix.os == 'ubuntu-latest'
@@ -125,7 +125,7 @@ jobs:
       - name: Test scaffold CLI
         run: |
           cd /tmp
-          node $GITHUB_WORKSPACE/packages/create-mctx-server/index.js test-project
+          node $GITHUB_WORKSPACE/packages/create-mctx-app/index.js test-project
           cd test-project
           test -f package.json
           test -f index.js

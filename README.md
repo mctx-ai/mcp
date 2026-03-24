@@ -7,17 +7,17 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/@mctx-ai/mcp-server"><img src="https://img.shields.io/npm/v/@mctx-ai/mcp-server" alt="npm version"/></a>
-  <a href="https://www.npmjs.com/package/@mctx-ai/mcp-server"><img src="https://img.shields.io/npm/l/@mctx-ai/mcp-server" alt="license"/></a>
-  <a href="https://github.com/mctx-ai/mcp-server/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/mctx-ai/mcp-server/ci.yml" alt="CI"/></a>
+  <a href="https://www.npmjs.com/package/@mctx-ai/app"><img src="https://img.shields.io/npm/v/@mctx-ai/app" alt="npm version"/></a>
+  <a href="https://www.npmjs.com/package/@mctx-ai/app"><img src="https://img.shields.io/npm/l/@mctx-ai/app" alt="license"/></a>
+  <a href="https://github.com/mctx-ai/app/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/mctx-ai/app/ci.yml" alt="CI"/></a>
 </p>
 
 ```bash
-npm install @mctx-ai/mcp-server
+npm install @mctx-ai/app
 ```
 
 ```javascript
-import { createServer, T } from "@mctx-ai/mcp-server";
+import { createServer, T } from "@mctx-ai/app";
 
 const app = createServer({
   instructions: "A greeting server. Use the greet tool to say hello.",
@@ -103,7 +103,7 @@ app.prompt("code-review", codeReview);
 For multi-message prompts with images or embedded resources:
 
 ```javascript
-import { conversation } from "@mctx-ai/mcp-server";
+import { conversation } from "@mctx-ai/app";
 
 function debug({ error, screenshot }) {
   return conversation(({ user, ai }) => [
@@ -146,7 +146,7 @@ All types accept `required`, `description`, and `default`.
 Use generator functions and `createProgress()` for long-running tools.
 
 ```javascript
-import { createProgress } from "@mctx-ai/mcp-server";
+import { createProgress } from "@mctx-ai/app";
 
 function* migrate({ tables }) {
   const step = createProgress(tables.length);
@@ -166,7 +166,7 @@ app.tool("migrate", migrate);
 ### Structured Logging
 
 ```javascript
-import { log } from "@mctx-ai/mcp-server";
+import { log } from "@mctx-ai/app";
 
 log.info("Server started");
 log.warning("Rate limit approaching");
@@ -212,7 +212,7 @@ The `ctx` parameter is available on all handler types: tools, resources, and pro
 Scaffold a new app:
 
 ```bash
-npm create mctx-server my-app
+npm create mctx-app my-app
 cd my-app
 npm install
 npm run dev
@@ -248,7 +248,7 @@ See [docs.mctx.ai](https://docs.mctx.ai) for detailed guidance on all discoverab
 
 - [Documentation](https://docs.mctx.ai)
 - [Example App](https://github.com/mctx-ai/example-mcp-server)
-- [GitHub Issues](https://github.com/mctx-ai/mcp-server/issues)
+- [GitHub Issues](https://github.com/mctx-ai/app/issues)
 
 ---
 

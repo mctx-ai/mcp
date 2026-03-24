@@ -1,7 +1,7 @@
 {
-  "name": "@mctx-ai/mcp-dev",
+  "name": "@mctx-ai/dev",
   "version": "1.0.0",
-  "description": "Local development server for @mctx-ai/mcp-server with hot reload",
+  "description": "Local development server for @mctx-ai/app with hot reload",
   "type": "module",
   "main": "./src/cli.js",
   "bin": {
@@ -28,11 +28,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mctx-ai/mcp-server.git",
+    "url": "https://github.com/mctx-ai/app.git",
     "directory": "packages/dev"
   },
   "bugs": {
-    "url": "https://github.com/mctx-ai/mcp-server/issues"
+    "url": "https://github.com/mctx-ai/app/issues"
   },
   "homepage": "https://docs.mctx.ai",
   "engines": {
@@ -43,6 +43,6 @@
     "provenance": true
   },
   "peerDependencies": {
-    "@mctx-ai/mcp-server": "^1.0.0"
+    "@mctx-ai/app": "^1.0.0"
   }
 }

@@ -1,5 +1,5 @@
 {
-  "name": "@mctx-ai/mcp-server",
+  "name": "@mctx-ai/app",
   "version": "1.1.0",
   "description": "Build Apps for AI with an Express-like API — no protocol knowledge required",
   "type": "module",
@@ -36,11 +36,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mctx-ai/mcp-server.git",
+    "url": "https://github.com/mctx-ai/app.git",
     "directory": "packages/server"
   },
   "bugs": {
-    "url": "https://github.com/mctx-ai/mcp-server/issues"
+    "url": "https://github.com/mctx-ai/app/issues"
   },
   "homepage": "https://docs.mctx.ai",
   "publishConfig": {

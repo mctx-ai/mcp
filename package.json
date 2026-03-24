@@ -1,5 +1,5 @@
 {
-  "name": "@mctx-ai/mcp-server-monorepo",
+  "name": "@mctx-ai/app-monorepo",
   "version": "0.1.0",
   "private": true,
   "type": "module",

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * @mctx-ai/mcp-dev CLI Entry Point
+ * @mctx-ai/dev CLI Entry Point
  *
  * Usage: npx mctx-dev <entry-file>
  * Example: npx mctx-dev index.js

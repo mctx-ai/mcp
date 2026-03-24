@@ -1,10 +1,10 @@
 {
-  "name": "create-mctx-server",
+  "name": "create-mctx-app",
   "version": "1.0.0",
-  "description": "Create a new mctx MCP server project",
+  "description": "Create a new mctx App project",
   "type": "module",
   "bin": {
-    "create-mctx-server": "index.js"
+    "create-mctx-app": "index.js"
   },
   "files": [
     "index.js"
@@ -20,11 +20,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mctx-ai/mcp-server.git",
-    "directory": "packages/create-mctx-server"
+    "url": "https://github.com/mctx-ai/app.git",
+    "directory": "packages/create-mctx-app"
   },
   "bugs": {
-    "url": "https://github.com/mctx-ai/mcp-server/issues"
+    "url": "https://github.com/mctx-ai/app/issues"
   },
   "homepage": "https://docs.mctx.ai",
   "publishConfig": {

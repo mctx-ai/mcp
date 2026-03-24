@@ -304,8 +304,8 @@ These variables are injected automatically by the mctx deploy worker. You do not
 Scaffold a new project in one command:
 
 ```bash
-npm create mctx-app my-server
-cd my-server
+npm create mctx-app my-app
+cd my-app
 npm install
 npm run dev
 ```

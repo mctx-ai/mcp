@@ -11,7 +11,7 @@
 ---
 
 ```bash
-npm create mctx-app my-server
+npm create mctx-app my-app
 ```
 
 ## What you get
@@ -27,8 +27,8 @@ npm create mctx-app my-server
 ## Get running
 
 ```bash
-npm create mctx-app my-server
-cd my-server
+npm create mctx-app my-app
+cd my-app
 npm install
 npm run dev
 ```

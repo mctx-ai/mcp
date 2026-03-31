@@ -73,7 +73,7 @@ describe("full server integration", () => {
     );
   });
 
-  it("includes channels capability in initialize response when all channel env vars are configured", async () => {
+  it("includes channels capability in initialize response (always-on, header-based)", async () => {
     const app = createServer();
 
     const initRequest = createRequest({
@@ -99,7 +99,7 @@ describe("full server integration", () => {
     expect(initData.result.capabilities.logging).toBeDefined();
   });
 
-  it("omits channels capability in initialize response when no env is passed", async () => {
+  it("always advertises channels capability in initialize response (header-based, no env vars needed)", async () => {
     const app = createServer();
 
     const initRequest = createRequest({
@@ -113,11 +113,11 @@ describe("full server integration", () => {
       },
     });
 
-    // No env argument — channels should not be advertised
+    // No env argument — channels are always advertised (header-based, no env vars needed)
     const initResponse = await app.fetch(initRequest);
     const initData = await initResponse.json();
 
-    expect(initData.result.capabilities.channels).toBeUndefined();
+    expect(initData.result.capabilities.channels).toBeDefined();
     expect(initData.result.capabilities.logging).toBeDefined();
   });
 
@@ -601,6 +601,103 @@ describe("security integration", () => {
     expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
     expect(response.headers.get("Content-Security-Policy")).toBe("default-src 'none'");
     expect(response.headers.get("X-Frame-Options")).toBe("DENY");
+  });
+});
+
+describe("channel events end-to-end", () => {
+  it("tool handler calling ctx.emit() produces X-Mctx-Event header on response", async () => {
+    const app = createServer();
+
+    const emitTool = (_args, _ask, ctx) => {
+      ctx.emit("Task started", { eventType: "task_status", meta: { step: "begin" } });
+      return "done";
+    };
+    emitTool.input = {};
+    app.tool("emit-tool", emitTool);
+
+    const request = createRequest({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: { name: "emit-tool", arguments: {} },
+    });
+
+    const response = await app.fetch(request);
+
+    expect(response.status).toBe(200);
+    const headerValue = response.headers.get("X-Mctx-Event");
+    expect(headerValue).not.toBeNull();
+    const event = JSON.parse(headerValue);
+    expect(event).toMatchObject({
+      eventId: expect.any(String),
+      eventType: "task_status",
+      content: "Task started",
+      metadata: { step: "begin" },
+      expiresAt: expect.any(String),
+    });
+  });
+
+  it("tool handler calling ctx.cancel() produces X-Mctx-Cancel header on response", async () => {
+    const app = createServer();
+
+    const cancelTool = (_args, _ask, ctx) => {
+      const eventId = ctx.emit("Scheduled task", { deliverAt: "2026-04-01T12:00:00Z" });
+      ctx.cancel(eventId);
+      return "cancelled";
+    };
+    cancelTool.input = {};
+    app.tool("cancel-tool", cancelTool);
+
+    const request = createRequest({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: { name: "cancel-tool", arguments: {} },
+    });
+
+    const response = await app.fetch(request);
+
+    expect(response.status).toBe(200);
+    const cancelHeader = response.headers.get("X-Mctx-Cancel");
+    expect(cancelHeader).not.toBeNull();
+    expect(typeof cancelHeader).toBe("string");
+    expect(cancelHeader.length).toBeGreaterThan(0);
+
+    // The cancelled eventId matches the one emitted
+    const eventHeader = response.headers.get("X-Mctx-Event");
+    const event = JSON.parse(eventHeader);
+    expect(cancelHeader).toBe(event.eventId);
+  });
+
+  it("X-Mctx-Event headers survive on error response when tool throws after emitting", async () => {
+    const app = createServer();
+
+    const throwAfterEmitTool = (_args, _ask, ctx) => {
+      ctx.emit("Before failure", { eventType: "warning" });
+      throw new Error("Tool failed after emit");
+    };
+    throwAfterEmitTool.input = {};
+    app.tool("throw-after-emit", throwAfterEmitTool);
+
+    const request = createRequest({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: { name: "throw-after-emit", arguments: {} },
+    });
+
+    const response = await app.fetch(request);
+    const data = await response.json();
+
+    // Tool errors are returned as isError content (not JSON-RPC error), status 200
+    expect(data.result.isError).toBe(true);
+
+    // X-Mctx-Event header must survive even though the tool threw
+    const headerValue = response.headers.get("X-Mctx-Event");
+    expect(headerValue).not.toBeNull();
+    const event = JSON.parse(headerValue);
+    expect(event.eventType).toBe("warning");
+    expect(event.content).toBe("Before failure");
   });
 });
 

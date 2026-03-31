@@ -19,6 +19,7 @@ export default [
         // Cloudflare Worker / Web API globals
         Request: "readonly",
         Response: "readonly",
+        Headers: "readonly",
         crypto: "readonly",
         fetch: "readonly",
         TextEncoder: "readonly",

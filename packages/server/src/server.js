@@ -702,7 +702,7 @@ export function createServer(options = {}) {
    * @param {Object} [env] - Environment bindings (Cloudflare Workers env)
    * @returns {Object} Server capabilities and info
    */
-  function handleInitialize(params, env) {
+  function handleInitialize(params, _env) {
     // Store client capabilities for use during handler dispatch
     clientCapabilities = (params && params.capabilities) || {};
 

@@ -154,7 +154,7 @@ ctx.emit(content, options?)
 **Cancel signature:**
 
 ```javascript
-ctx.cancel(eventId)
+ctx.cancel(eventId);
 ```
 
 - `eventId` (string) — the eventId returned by a previous `ctx.emit()` call

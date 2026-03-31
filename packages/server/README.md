@@ -74,12 +74,12 @@ app.tool("delete_file", deleteFile);
 
 Available hints (all optional booleans):
 
-| Hint               | Description                                                    |
-| ------------------ | -------------------------------------------------------------- |
-| `readOnlyHint`     | Tool only reads data and does not modify state                 |
-| `destructiveHint`  | Tool may perform destructive or irreversible actions           |
-| `openWorldHint`    | Tool may interact with external systems (network, filesystem)  |
-| `idempotentHint`   | Repeated calls with identical arguments cause no extra effects |
+| Hint              | Description                                                    |
+| ----------------- | -------------------------------------------------------------- |
+| `readOnlyHint`    | Tool only reads data and does not modify state                 |
+| `destructiveHint` | Tool may perform destructive or irreversible actions           |
+| `openWorldHint`   | Tool may interact with external systems (network, filesystem)  |
+| `idempotentHint`  | Repeated calls with identical arguments cause no extra effects |
 
 ---
 
@@ -287,7 +287,7 @@ ctx.cancel(eventId: string): void
 | Parameter           | Type                     | Description                                                                                                                                           |
 | ------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `content`           | `string`                 | Display text for the event. Truncated to 500 characters. Empty strings are silently ignored.                                                          |
-| `options.eventType` | `string`                 | Event type identifier. Must match `[a-zA-Z0-9_]+`. Defaults to `'channel'` when omitted or invalid.                                                  |
+| `options.eventType` | `string`                 | Event type identifier. Must match `[a-zA-Z0-9_]+`. Defaults to `'channel'` when omitted or invalid.                                                   |
 | `options.meta`      | `Record<string, string>` | Key/value metadata. All keys must match `[a-zA-Z0-9_]+` and all values must be strings — any violation causes the entire emit call to no-op silently. |
 | `options.deliverAt` | `string`                 | ISO timestamp for scheduled/deferred delivery. Silently ignored if not a non-empty string.                                                            |
 | `options.key`       | `string`                 | Correlation key for deduplication and cancellation. Must be a non-empty string matching `/^[a-zA-Z0-9_]+$/`. Silently ignored if invalid.             |

@@ -152,36 +152,63 @@ export function createServer(options?: ServerOptions): Server;
  * Options for the emit() function.
  */
 export interface ChannelEventOptions {
-  /** Override the event type (default: 'notification') */
+  /** Override the event type (default: 'channel') */
   eventType?: string;
-  /** Key/value metadata (keys must match /^[a-zA-Z0-9_]+$/) */
+  /**
+   * Key/value metadata (keys must match /^[a-zA-Z0-9_]+$/).
+   * Serialized as `metadata` in the X-Mctx-Event JSON header per dispatch worker contract.
+   */
   meta?: Record<string, string>;
   /**
-   * Unix timestamp (milliseconds) for scheduled delivery.
-   * Must be a positive number. Silently ignored if invalid.
+   * ISO timestamp string for scheduled delivery.
+   * Must be a non-empty string. Silently ignored if invalid.
    */
-  deliverAt?: number;
+  deliverAt?: string;
   /**
    * Correlation key for deduplication and cancellation.
-   * Must be a non-empty string matching /^[a-zA-Z0-9_]+$/ or UUID format.
+   * Must be a non-empty string matching /^[a-zA-Z0-9_]+$/.
    * Silently ignored if invalid.
+   *
+   * This is a developer-supplied idempotency identifier (e.g. "deploy_123"),
+   * not an event ID reference. UUIDs are NOT valid keys because they contain
+   * hyphens (e.g. "550e8400-e29b-41d4-a716-446655440000" fails the pattern).
    */
   key?: string;
 }
 
 /**
  * Channel event emission function.
+ * Appends an X-Mctx-Event response header with the event JSON.
+ * Returns the eventId string synchronously.
+ * Returns an empty string on no-op (invalid input or unconfigured).
  *
  * @example
  * ```typescript
  * // In a tool handler — use ctx.emit
- * async function myTool(args: { name: string }, ask, ctx) {
- *   await ctx.emit("Processing started", { eventType: "status", meta: { name: args.name } });
+ * function myTool(args: { name: string }, ask, ctx) {
+ *   const eventId = ctx.emit("Processing started", { eventType: "status", meta: { name: args.name } });
+ *   // eventId can be used later with ctx.cancel(eventId)
  *   return "done";
  * }
  * ```
  */
-export type EmitFunction = (content: string, options?: ChannelEventOptions) => Promise<string>;
+export type EmitFunction = (content: string, options?: ChannelEventOptions) => string;
+
+/**
+ * Channel event cancellation function.
+ * Cancels a pending scheduled channel event by its eventId.
+ * Appends an X-Mctx-Cancel response header with the eventId.
+ *
+ * @example
+ * ```typescript
+ * // In a tool handler — use ctx.cancel
+ * function myTool(args: { eventId: string }, ask, ctx) {
+ *   ctx.cancel(args.eventId);
+ *   return "cancelled";
+ * }
+ * ```
+ */
+export type CancelFunction = (eventId: string) => void;
 
 /**
  * Regex pattern constant for valid metadata keys (/^[a-zA-Z0-9_]+$/).
@@ -189,57 +216,51 @@ export type EmitFunction = (content: string, options?: ChannelEventOptions) => P
 export declare const META_KEY_PATTERN: RegExp;
 
 /**
- * Creates a channel emit function bound to the given request context.
+ * Creates a channel emit function bound to the given response Headers object.
  *
- * Sets X-Mctx-Event on ctx._pendingHeaders with the serialized event payload.
- * Returns the generated eventId so callers can reference or cancel the event.
+ * Each emit() call appends one X-Mctx-Event header with one JSON event object.
+ * The dispatch worker reads these headers and writes events to D1.
  *
- * @param ctx - Request context object with _pendingHeaders
- * @returns Async emit function that returns eventId string
+ * Returns a no-op function when responseHeaders is not provided or lacks an
+ * append method.
+ *
+ * @param responseHeaders - The Response Headers object to append events to
+ * @returns Synchronous emit function returning an eventId string
  *
  * @example
  * ```typescript
  * import { createEmit } from '@mctx-ai/app';
  *
- * const emit = createEmit(ctx);
- * const eventId = await emit("Something happened", { eventType: "alert", meta: { severity: "high" } });
+ * const responseHeaders = new Headers();
+ * const emit = createEmit(responseHeaders);
+ * const eventId = emit("Something happened", { eventType: "alert", meta: { severity: "high" } });
  * ```
  */
-export declare function createEmit(ctx: any): EmitFunction;
+export declare function createEmit(responseHeaders: Headers | null | undefined): EmitFunction;
 
 /**
- * Channel event cancellation function.
- * Cancels a pending scheduled channel event by its eventId.
+ * Creates a channel cancel function bound to the given response Headers object.
  *
- * @example
- * ```typescript
- * // In a tool handler — use ctx.cancel
- * async function myTool(args, ask, ctx) {
- *   const eventId = await ctx.emit("scheduled", { deliverAt: new Date(Date.now() + 60000) });
- *   await ctx.cancel(eventId);
- *   return "cancelled";
- * }
- * ```
- */
-export type CancelFunction = (eventId: string) => Promise<void>;
-
-/**
- * Creates a channel cancel function bound to the given request context.
+ * Each cancel() call appends one X-Mctx-Cancel header with the eventId as a
+ * plain string value. The dispatch worker reads these headers and cancels
+ * the matching pending events in D1.
  *
- * Sets X-Mctx-Cancel on ctx._pendingHeaders with the eventId to cancel.
+ * Returns a no-op function when responseHeaders is not provided or lacks an
+ * append method.
  *
- * @param ctx - Request context object with _pendingHeaders
- * @returns Async cancel function
+ * @param responseHeaders - The Response Headers object to append cancellations to
+ * @returns Synchronous cancel function
  *
  * @example
  * ```typescript
  * import { createCancel } from '@mctx-ai/app';
  *
- * const cancel = createCancel(ctx);
- * await cancel(eventId);
+ * const responseHeaders = new Headers();
+ * const cancel = createCancel(responseHeaders);
+ * cancel(eventId);
  * ```
  */
-export declare function createCancel(ctx: any): CancelFunction;
+export declare function createCancel(responseHeaders: Headers | null | undefined): CancelFunction;
 
 // ============================================================================
 // Context Types
@@ -257,14 +278,14 @@ export interface McpContext {
   userId?: string;
   /**
    * Channel event emission function for this request.
-   * Sends real-time events to mctx channel subscribers.
-   * No-op when channel is not configured (missing env vars).
+   * Appends X-Mctx-Event response headers read by the dispatch worker.
+   * Returns the eventId string synchronously.
    */
   emit: EmitFunction;
   /**
    * Channel event cancellation function for this request.
-   * Cancels a pending scheduled channel event by its correlation key.
-   * No-op when channel is not configured (missing env vars).
+   * Appends X-Mctx-Cancel response headers read by the dispatch worker.
+   * Cancels a pending scheduled channel event by its eventId.
    */
   cancel: CancelFunction;
 }

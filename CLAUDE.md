@@ -128,13 +128,13 @@ Handler functions receive up to three parameters: `(args, ask, ctx)` for tools a
 2. **Resources** — Static URIs or URI templates with `{param}` placeholders. Params extracted via RFC 6570 Level 1. Template handlers receive `(params, ask, ctx)`.
 3. **Prompts** — Return string, `conversation()` result, or Message array. Receive `(args, ask, ctx)`.
 
-`McpContext` shape: `{ userId?: string, emit: EmitFunction }`. `ctx.userId` is a stable, opaque identifier for the authenticated user extracted from the `X-Mctx-User-Id` HTTP header injected by the mctx dispatch worker. It is `undefined` for unauthenticated requests.
+`McpContext` shape: `{ userId?: string, emit: EmitFunction, cancel: CancelFunction }`. `ctx.userId` is a stable, opaque identifier for the authenticated user extracted from the `X-Mctx-User-Id` HTTP header injected by the mctx dispatch worker. It is `undefined` for unauthenticated requests.
 
 ### Channel Events
 
-`ctx.emit(content, options?)` — Fire-and-forget channel event emission available in all handler types (tools, resources, prompts) via the `ctx` parameter.
+`ctx.emit(content, options?)` and `ctx.cancel(eventId)` are available in all handler types (tools, resources, prompts) via the `ctx` parameter. Events are written as `X-Mctx-Event` response headers; the dispatch worker reads these headers and writes events to D1. No HTTP calls, env vars, or async coordination required.
 
-**Signature:**
+**Emit signature:**
 
 ```javascript
 ctx.emit(content, options?)
@@ -144,35 +144,61 @@ ctx.emit(content, options?)
 
 - `content` (string) — Display text for the event, non-empty, truncated to 500 characters
 - `options` (object, optional) — Event configuration
-  - `options.eventType` (string) — Custom event type identifier (default: `"notification"`), must match `[a-zA-Z0-9_]+`
-  - `options.meta` (object) — Key-value metadata, both keys and values must be strings and keys must match `[a-zA-Z0-9_]+`
+  - `options.eventType` (string) — Custom event type identifier (default: `"channel"`), must match `[a-zA-Z0-9_]+`
+  - `options.meta` (object) — Key-value metadata; both keys and values must be strings and keys must match `[a-zA-Z0-9_]+`
+  - `options.deliverAt` (string) — ISO 8601 timestamp for scheduled delivery; omit for immediate delivery
+  - `options.key` (string) — Idempotency/correlation key for deduplication and cancellation, must match `[a-zA-Z0-9_]+`
+
+**Returns:** `string` — the eventId (UUID) synchronously, or `""` on silent no-op
+
+**Cancel signature:**
+
+```javascript
+ctx.cancel(eventId);
+```
+
+- `eventId` (string) — the eventId returned by a previous `ctx.emit()` call
+- Appends an `X-Mctx-Cancel` response header; the dispatch worker cancels the matching pending event in D1
+- No-ops silently on invalid input
 
 **Behavior:**
 
-- No-ops silently when unconfigured (missing env vars: `MCTX_EVENTS_ENDPOINT`, `MCTX_SERVER_ID`, `MCTX_EVENTS_SECRET`)
-- No-ops silently on failure or invalid input
+- No-ops silently on invalid input (wrong types, empty strings, invalid key/meta patterns)
 - Content automatically truncated to 500 characters
-- Metadata keys and values validated; any violation triggers silent no-op
-- HMAC-SHA256 signed via Web Crypto API and POSTed to `MCTX_EVENTS_ENDPOINT`
-- Fire-and-forget via `ctx.waitUntil()` (does not block tool response or await result)
-- Environment variables injected at deploy time by mctx platform
+- Any metadata key or value violation triggers a silent no-op (no event emitted)
+- `expiresAt` set automatically to 7 days from emit time; cannot be overridden
+- Synchronous and non-blocking — no async, no awaiting, no side effects on the tool response
 
-**Important:** Developers MUST sanitize user-generated content before passing to `ctx.emit()`. The emit function does not perform content sanitization beyond length truncation. This is a one-way channel (v1) — server to client push only, no reply tools.
+**Important:** Developers MUST sanitize user-generated content before passing to `ctx.emit()`. The emit function does not perform content sanitization beyond length truncation.
 
 **Example:**
 
 ```javascript
-function myTool({ userId }, _ask, ctx) {
+function myTool({ userId, scheduleFor }, _ask, ctx) {
   // ... do work ...
 
   // Sanitize user input before emitting
   const sanitizedMessage = sanitize(userInput);
-  ctx.emit(`User ${userId} completed task`, {
+
+  // Emit immediately and capture the eventId for possible cancellation
+  const eventId = ctx.emit(`User ${userId} completed task`, {
     eventType: "task_complete",
     meta: { user_id: userId, status: "success" },
   });
 
-  return { success: true };
+  // Emit a scheduled follow-up notification
+  const reminderEventId = ctx.emit("Reminder: review your results", {
+    eventType: "reminder",
+    deliverAt: scheduleFor,
+    key: `reminder_${userId}`,
+  });
+
+  // Cancel a previously scheduled event if needed
+  if (shouldCancel) {
+    ctx.cancel(reminderEventId);
+  }
+
+  return { success: true, eventId };
 }
 ```
 
@@ -187,7 +213,7 @@ function myTool({ userId }, _ask, ctx) {
 - **`sampling.js`** — LLM-in-the-loop via `ask` function (client sampling capability)
 - **`completion.js`** — Auto-completion from handlers, T.enum, or URI templates
 - **`security.js`** — Error sanitization, secret redaction, size limits, URI scheme validation
-- **`channel.js`** — Channel event emission (createEmit, HMAC signing, meta validation)
+- **`channel.js`** — Channel event emission (createEmit, createCancel, response header event emission)
 
 ---
 

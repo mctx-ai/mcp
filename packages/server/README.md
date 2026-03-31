@@ -57,6 +57,30 @@ app.tool("add", add);
 
 Return a string and it becomes the tool's text response. Return an object and it gets JSON-serialized automatically.
 
+### ToolAnnotations
+
+Attach behavioral hints to a tool by setting its `.annotations` property. Clients use these hints to adjust permission prompts and UI treatment.
+
+```javascript
+function deleteFile({ path }) {
+  fs.unlinkSync(path);
+  return `Deleted ${path}`;
+}
+deleteFile.description = "Delete a file from disk";
+deleteFile.input = { path: T.string({ required: true }) };
+deleteFile.annotations = { destructiveHint: true };
+app.tool("delete_file", deleteFile);
+```
+
+Available hints (all optional booleans):
+
+| Hint              | Description                                                    |
+| ----------------- | -------------------------------------------------------------- |
+| `readOnlyHint`    | Tool only reads data and does not modify state                 |
+| `destructiveHint` | Tool may perform destructive or irreversible actions           |
+| `openWorldHint`   | Tool may interact with external systems (network, filesystem)  |
+| `idempotentHint`  | Repeated calls with identical arguments cause no extra effects |
+
 ---
 
 ## Resources
@@ -225,17 +249,17 @@ async function summarize({ url }, ask) {
 }
 ```
 
-The full handler signature is `(args, ask)` for tools and prompts, and `(params, ask)` for resource templates. Both parameters are optional — omit any you don't need.
+The full handler signature is `(args, ask, ctx)` for tools and prompts, and `(params, ask, ctx)` for resource templates. All parameters are optional — omit any you don't need.
 
 ---
 
 ## Channel Events
 
-Channel events let your server push real-time notifications to mctx channel subscribers. Each call is fire-and-forget — it returns immediately and does not block your tool's response. When the channel is not configured, `ctx.emit` is a no-op and your code runs unchanged.
+Channel events let your server push real-time notifications to mctx channel subscribers. `ctx.emit` writes events as `X-Mctx-Event` response headers. The dispatch worker reads those headers and writes the events to D1. No configuration required — channel events work automatically in production.
 
 ```javascript
-server.tool("deploy", async (args, ask, ctx) => {
-  ctx.emit("Deployment started", {
+app.tool("deploy", (args, ask, ctx) => {
+  const startEventId = ctx.emit("Deployment started", {
     eventType: "deploy_status",
     meta: { environment: args.env, version: args.version },
   });
@@ -254,48 +278,45 @@ server.tool("deploy", async (args, ask, ctx) => {
 ### API Reference
 
 ```typescript
-ctx.emit(content: string, options?: ChannelEventOptions): Promise<void>
+ctx.emit(content: string, options?: ChannelEventOptions): string
+ctx.cancel(eventId: string): void
 ```
+
+**emit()**
 
 | Parameter           | Type                     | Description                                                                                                                                           |
 | ------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `content`           | `string`                 | Display text for the event. Truncated to 500 characters. Empty strings are silently ignored.                                                          |
-| `options.eventType` | `string`                 | Event type identifier. Must match `[a-zA-Z0-9_]+`. Defaults to `'notification'` when omitted or invalid.                                              |
+| `options.eventType` | `string`                 | Event type identifier. Must match `[a-zA-Z0-9_]+`. Defaults to `'channel'` when omitted or invalid.                                                   |
 | `options.meta`      | `Record<string, string>` | Key/value metadata. All keys must match `[a-zA-Z0-9_]+` and all values must be strings — any violation causes the entire emit call to no-op silently. |
+| `options.deliverAt` | `string`                 | ISO timestamp for scheduled/deferred delivery. Silently ignored if not a non-empty string.                                                            |
+| `options.key`       | `string`                 | Correlation key for deduplication and cancellation. Must be a non-empty string matching `/^[a-zA-Z0-9_]+$/`. Silently ignored if invalid.             |
+| `options.expiresAt` | `string` (auto-computed) | ISO timestamp after which the event is discarded. Automatically set to 7 days from emit time. Not currently configurable via options.                 |
 
-`ctx.emit` returns immediately — the HTTP request to the channel endpoint runs in the background using `waitUntil`. No-ops silently when the channel is not configured.
+Returns the `eventId` (UUID string) synchronously. Returns `""` on no-op (invalid input).
 
-### Advanced Usage
+**cancel()**
 
-`createEmit` is exported directly for custom integrations, such as wiring channel events outside of a tool handler.
+Cancels a pending scheduled event by `eventId`. Appends an `X-Mctx-Cancel` response header with the `eventId` as a plain string.
 
 ```javascript
-import { createEmit } from "@mctx-ai/app";
+app.tool("schedule_and_cancel", (args, ask, ctx) => {
+  const eventId = ctx.emit("Reminder", {
+    eventType: "reminder",
+    deliverAt: "2026-04-01T09:00:00.000Z",
+    key: "daily_reminder",
+  });
 
-// Bind emit to the Worker environment and execution context
-const emit = createEmit(env, executionCtx);
+  // Later, cancel it
+  ctx.cancel(eventId);
 
-await emit("User completed onboarding", {
-  eventType: "milestone",
-  meta: { user_id: "u_123" },
+  return "Event cancelled";
 });
 ```
-
-`createEmit` returns a no-op when `MCTX_EVENTS_ENDPOINT`, `MCTX_SERVER_ID`, or `MCTX_EVENTS_SECRET` are missing from `env`, or when the secret is shorter than 32 characters.
 
 ### Security
 
 You are responsible for sanitizing user-generated content before passing it to `ctx.emit`. The framework validates that meta key names match `[a-zA-Z0-9_]+` but does not sanitize the `content` string or meta values. Avoid passing raw user input directly.
-
-### Environment Variables
-
-These variables are injected automatically by the mctx deploy worker. You do not set them manually.
-
-| Variable               | Description                                        |
-| ---------------------- | -------------------------------------------------- |
-| `MCTX_EVENTS_ENDPOINT` | URL of the mctx channel events endpoint            |
-| `MCTX_SERVER_ID`       | Identifier for your server, used to route events   |
-| `MCTX_EVENTS_SECRET`   | HMAC-SHA256 signing secret (minimum 32 characters) |
 
 ---
 

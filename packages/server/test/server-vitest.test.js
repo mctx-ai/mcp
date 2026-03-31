@@ -1278,7 +1278,7 @@ describe("initialize", () => {
     expect(data.result.capabilities.channels).toBeDefined();
   });
 
-  it("omits channels capability when MCTX_EVENTS_ENDPOINT is absent from env", async () => {
+  it("always advertises channels capability when no env is passed (header-based, no env vars needed)", async () => {
     const app = createServer();
 
     const request = createRequest({
@@ -1290,10 +1290,11 @@ describe("initialize", () => {
     const response = await app.fetch(request);
     const data = await response.json();
 
-    expect(data.result.capabilities.channels).toBeUndefined();
+    // channels is always advertised — it uses response headers, not HTTP+env vars
+    expect(data.result.capabilities.channels).toBeDefined();
   });
 
-  it("omits channels capability when env has endpoint but MCTX_SERVER_ID is missing", async () => {
+  it("always advertises channels capability regardless of missing MCTX_SERVER_ID", async () => {
     const app = createServer();
 
     const request = createRequest({
@@ -1305,15 +1306,15 @@ describe("initialize", () => {
     const env = {
       MCTX_EVENTS_ENDPOINT: "https://events.example.com",
       MCTX_EVENTS_SECRET: "a".repeat(32),
-      // MCTX_SERVER_ID intentionally omitted
+      // MCTX_SERVER_ID intentionally omitted — no longer relevant
     };
     const response = await app.fetch(request, env);
     const data = await response.json();
 
-    expect(data.result.capabilities.channels).toBeUndefined();
+    expect(data.result.capabilities.channels).toBeDefined();
   });
 
-  it("omits channels capability when env has endpoint but MCTX_EVENTS_SECRET is missing", async () => {
+  it("always advertises channels capability regardless of missing MCTX_EVENTS_SECRET", async () => {
     const app = createServer();
 
     const request = createRequest({
@@ -1325,15 +1326,15 @@ describe("initialize", () => {
     const env = {
       MCTX_EVENTS_ENDPOINT: "https://events.example.com",
       MCTX_SERVER_ID: "server-123",
-      // MCTX_EVENTS_SECRET intentionally omitted
+      // MCTX_EVENTS_SECRET intentionally omitted — no longer relevant
     };
     const response = await app.fetch(request, env);
     const data = await response.json();
 
-    expect(data.result.capabilities.channels).toBeUndefined();
+    expect(data.result.capabilities.channels).toBeDefined();
   });
 
-  it("omits channels capability when MCTX_EVENTS_SECRET is shorter than 32 characters", async () => {
+  it("always advertises channels capability regardless of short MCTX_EVENTS_SECRET", async () => {
     const app = createServer();
 
     const request = createRequest({
@@ -1345,12 +1346,12 @@ describe("initialize", () => {
     const env = {
       MCTX_EVENTS_ENDPOINT: "https://events.example.com",
       MCTX_SERVER_ID: "server-123",
-      MCTX_EVENTS_SECRET: "tooshort", // only 8 chars, below the 32-char minimum
+      MCTX_EVENTS_SECRET: "tooshort", // no longer relevant — channels use response headers
     };
     const response = await app.fetch(request, env);
     const data = await response.json();
 
-    expect(data.result.capabilities.channels).toBeUndefined();
+    expect(data.result.capabilities.channels).toBeDefined();
   });
 });
 

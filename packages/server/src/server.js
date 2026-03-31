@@ -702,7 +702,7 @@ export function createServer(options = {}) {
    * @param {Object} [env] - Environment bindings (Cloudflare Workers env)
    * @returns {Object} Server capabilities and info
    */
-  function handleInitialize(params, env) {
+  function handleInitialize(params, _env) {
     // Store client capabilities for use during handler dispatch
     clientCapabilities = (params && params.capabilities) || {};
 
@@ -734,18 +734,9 @@ export function createServer(options = {}) {
     // via the ask() function if the client also supports sampling
     capabilities.sampling = {};
 
-    // Add channels capability when channel emission is fully configured.
-    // Mirrors the createEmit guard in channel.js: all three env vars must be
-    // present AND the secret must be at least 32 characters.
-    if (
-      env &&
-      env.MCTX_EVENTS_ENDPOINT &&
-      env.MCTX_SERVER_ID &&
-      env.MCTX_EVENTS_SECRET &&
-      env.MCTX_EVENTS_SECRET.length >= 32
-    ) {
-      capabilities.channels = {};
-    }
+    // Always advertise channels capability — channel events are written as response
+    // headers (X-Mctx-Event) and require no env var configuration.
+    capabilities.channels = {};
 
     // Build response
     const response = {
@@ -895,17 +886,18 @@ export function createServer(options = {}) {
     // Extract user ID from request header injected by mctx dispatch worker
     const userId = request.headers.get("x-mctx-user-id") || undefined;
 
+    // Build mutable response headers so channel emit/cancel can append X-Mctx-Event
+    // and X-Mctx-Cancel headers that the dispatch worker reads after the response.
+    const responseHeaders = new Headers(SECURITY_HEADERS);
+
+    // Create channel emit function bound to this request's response headers
+    const emit = createEmit(responseHeaders);
+
+    // Create channel cancel function bound to this request's response headers
+    const cancel = createCancel(responseHeaders);
+
     // Build context object passed as third arg to all handlers
-    const ctx = { userId, _pendingHeaders: {} };
-
-    // Create channel emit function bound to this request's ctx
-    const emit = createEmit(ctx);
-
-    // Create channel cancel function bound to this request's ctx
-    const cancel = createCancel(ctx);
-
-    ctx.emit = emit;
-    ctx.cancel = cancel;
+    const ctx = { userId, emit, cancel };
 
     let rpcRequest;
     let rawBody;
@@ -967,7 +959,7 @@ export function createServer(options = {}) {
 
       // For notifications (no id), return 204 No Content
       if (!("id" in rpcRequest)) {
-        return new Response(null, { status: 204 });
+        return new Response(null, { status: 204, headers: responseHeaders });
       }
 
       // Build response object
@@ -980,10 +972,10 @@ export function createServer(options = {}) {
       // Validate response size before sending (prevent DoS)
       validateResponseSize(responseBody);
 
-      // Return JSON-RPC success response
+      // Return JSON-RPC success response (responseHeaders includes any X-Mctx-Event headers)
       return new Response(JSON.stringify(responseBody), {
         status: 200,
-        headers: { ...SECURITY_HEADERS, ...ctx._pendingHeaders },
+        headers: responseHeaders,
       });
     } catch (error) {
       // Check if error is JSON-RPC error (has code and message)
@@ -1004,7 +996,7 @@ export function createServer(options = {}) {
         }),
         {
           status: 200, // JSON-RPC errors use 200 status with error object
-          headers: SECURITY_HEADERS,
+          headers: responseHeaders,
         },
       );
     }

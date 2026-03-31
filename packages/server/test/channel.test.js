@@ -5,7 +5,7 @@
  * channel event emission module.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createEmit, createCancel, META_KEY_PATTERN } from "../src/channel.js";
 
 // ---------------------------------------------------------------------------

@@ -26,10 +26,12 @@ const app = createServer({
 function greet({ name }) {
   return `Hello, ${name}!`;
 }
+
 greet.description = "Greet someone by name";
 greet.input = {
   name: T.string({ required: true, description: "Name to greet" }),
 };
+
 app.tool("greet", greet);
 
 export default { fetch: app.fetch };
@@ -47,11 +49,13 @@ Tools are functions that AI can call -- like API endpoints. Define a function, a
 function add({ a, b }) {
   return a + b;
 }
+
 add.description = "Add two numbers";
 add.input = {
   a: T.number({ required: true, description: "First number" }),
   b: T.number({ required: true, description: "Second number" }),
 };
+
 app.tool("add", add);
 ```
 
@@ -68,6 +72,7 @@ Resources are read-only data that AI can pull for context. They use URI schemes 
 function readme() {
   return "# My Project\nWelcome to the docs.";
 }
+
 readme.mimeType = "text/markdown";
 app.resource("docs://readme", readme);
 
@@ -75,6 +80,7 @@ app.resource("docs://readme", readme);
 function getUser({ userId }) {
   return JSON.stringify(db.findUser(userId));
 }
+
 getUser.description = "Fetch a user by ID";
 getUser.mimeType = "application/json";
 app.resource("user://{userId}", getUser);
@@ -92,11 +98,13 @@ Prompts are reusable message templates for AI interactions. Return a string for 
 function codeReview({ code, language }) {
   return `Review this ${language} code for bugs and style issues:\n\n${code}`;
 }
+
 codeReview.description = "Review code for issues";
 codeReview.input = {
   code: T.string({ required: true, description: "Code to review" }),
   language: T.string({ description: "Programming language" }),
 };
+
 app.prompt("code-review", codeReview);
 ```
 
@@ -113,11 +121,13 @@ function debug({ error, screenshot }) {
     ai.say("I'll analyze the error and screenshot together."),
   ]);
 }
+
 debug.description = "Debug with error + screenshot";
 debug.input = {
   error: T.string({ required: true }),
   screenshot: T.string({ required: true, description: "Base64 image data" }),
 };
+
 app.prompt("debug", debug);
 ```
 
@@ -156,10 +166,12 @@ function* migrate({ tables }) {
   }
   return `Migrated ${tables.length} tables`;
 }
+
 migrate.description = "Migrate database tables";
 migrate.input = {
   tables: T.array({ required: true, items: T.string() }),
 };
+
 app.tool("migrate", migrate);
 ```
 
@@ -182,7 +194,9 @@ Tools receive an optional `ask` function as their second argument for LLM-in-the
 ```javascript
 async function summarize({ url }, ask) {
   const content = await fetchPage(url);
+
   if (!ask) return content;
+
   return await ask(`Summarize this page:\n\n${content}`);
 }
 ```
@@ -195,6 +209,7 @@ populated automatically by the platform.
 ```javascript
 function greet({ name }, _ask, ctx) {
   if (ctx.userId) log.info("Request from user", ctx.userId);
+
   return "Hello, " + name;
 }
 ```

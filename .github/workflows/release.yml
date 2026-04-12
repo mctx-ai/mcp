@@ -49,7 +49,7 @@ jobs:
       - run: npm ci
       - run: npm run build
       - name: Upgrade npm for OIDC support
-        run: npm install -g npm@latest
+        run: npm install -g npm@11.10.0
       - name: Release
         if: github.event_name == 'push'
         run: npm run release

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-import { mkdirSync, writeFileSync, existsSync, readFileSync } from "fs";
+import { mkdirSync, writeFileSync, existsSync, readFileSync, cpSync } from "fs";
 import { join } from "path";
+import { fileURLToPath } from "url";
 
 // Read version from own package.json
 const selfPkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
@@ -159,6 +160,10 @@ This bundles your server into a single \`dist/index.js\` file ready for deployme
 `;
 
 writeFileSync(join(projectName, "README.md"), readme);
+
+// Copy template files (e.g. .github/ CI workflows)
+const templateDir = join(fileURLToPath(new URL(".", import.meta.url)), "template");
+cpSync(templateDir, projectName, { recursive: true });
 
 // Success message
 console.log(`✓ Created ${projectName}

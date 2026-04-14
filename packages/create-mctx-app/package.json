@@ -7,7 +7,8 @@
     "create-mctx-app": "index.js"
   },
   "files": [
-    "index.js"
+    "index.js",
+    "template/"
   ],
   "keywords": [
     "mcp",

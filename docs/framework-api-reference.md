@@ -23,7 +23,7 @@ Returns an object with `.tool()`, `.resource()`, `.prompt()`, and `.fetch()` met
 Register a tool that AI clients can call.
 
 ```js
-const greet = ({ name, greeting }) => `${greeting}, ${name}!`;
+const greet = (ctx, { name, greeting }) => `${greeting}, ${name}!`;
 greet.description = "Greets a person";
 greet.input = {
   name: T.string({ required: true }),
@@ -34,8 +34,9 @@ app.tool("greet", greet);
 
 **Handler contract:**
 
-- Receives parsed arguments as first parameter
-- Second parameter `ask` is a function when the client advertises sampling capability, or `null` if the client does not support sampling — always check before calling
+- Receives `ctx` (McpContext) as first parameter — provides `ctx.userId`, `ctx.emit`, and `ctx.cancel`
+- Receives parsed arguments as second parameter
+- Third parameter `ask` is a function when the client advertises sampling capability, or `null` if the client does not support sampling — always check before calling
 - Returns `string`, `object` (auto-serialized), or MCP content array
 - Attach `.description` and `.input` as properties on the function
 - Errors are caught and returned as tool error responses with secrets redacted
@@ -48,17 +49,17 @@ Register a resource. Use exact URIs for static resources, URI templates for dyna
 
 ```js
 // Static
-const readme = () => "Content here";
+const readme = (ctx) => "Content here";
 readme.mimeType = "text/plain";
 app.resource("docs://readme", readme);
 
 // Dynamic (RFC 6570 Level 1 template)
-const user = ({ userId }) => JSON.stringify({ id: userId });
+const user = (ctx, { userId }) => JSON.stringify({ id: userId });
 user.mimeType = "application/json";
 app.resource("user://{userId}", user);
 ```
 
-Resource handlers receive `(params, ask)`. For static resources `params` is `{}`.
+Resource handlers receive `(ctx, params, ask)`. `ctx` is the McpContext. For static resources `params` is `{}`.
 
 ### app.prompt(name, handler)
 
@@ -66,18 +67,18 @@ Register a prompt template. Return a string for single-message prompts, or use `
 
 ```js
 // Single message
-const review = ({ code }) => `Review: ${code}`;
+const review = (ctx, { code }) => `Review: ${code}`;
 review.input = { code: T.string({ required: true }) };
 app.prompt("code-review", review);
 
 // Multi-message
-const debug = ({ error }) =>
+const debug = (ctx, { error }) =>
   conversation(({ user, ai }) => [user.say(`Debug: ${error}`), ai.say("Analyzing...")]);
 debug.input = { error: T.string({ required: true }) };
 app.prompt("debug", debug);
 ```
 
-Prompt handlers receive `(args, ask)`.
+Prompt handlers receive `(ctx, args, ask)`. `ctx` is the McpContext.
 
 ### app.fetch(request, env, ctx)
 
@@ -186,7 +187,7 @@ Creates a step function for generator-based tools.
 ```js
 import { createProgress } from "@mctx-ai/app";
 
-const task = function* ({ data }) {
+const task = function* (ctx, { data }) {
   const step = createProgress(3);
   yield step();
   yield step();
@@ -260,7 +261,7 @@ clearLogBuffer();
 
 ## Sampling (ask)
 
-All handlers receive a second parameter `ask` that enables LLM-in-the-loop sampling. The framework creates `ask` via `createAsk()`, which checks client capabilities during the MCP `initialize` handshake.
+All handlers receive a third parameter `ask` that enables LLM-in-the-loop sampling. The framework creates `ask` via `createAsk()`, which checks client capabilities during the MCP `initialize` handshake.
 
 - **`ask` is a function** when the client advertises `sampling` capability.
 - **`ask` is `null`** when the client does not support sampling.
@@ -268,7 +269,7 @@ All handlers receive a second parameter `ask` that enables LLM-in-the-loop sampl
 Always guard before calling `ask`:
 
 ```js
-const smart = async ({ question }, ask) => {
+const smart = async (ctx, { question }, ask) => {
   if (!ask) {
     return `Answer: ${question}`;
   }
@@ -284,7 +285,7 @@ const smart = async ({ question }, ask) => {
 Pass an options object for full control over the `sampling/createMessage` request:
 
 ```js
-const smart = async ({ question }, ask) => {
+const smart = async (ctx, { question }, ask) => {
   if (!ask) return `Answer: ${question}`;
 
   const result = await ask({

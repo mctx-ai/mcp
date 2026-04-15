@@ -7,7 +7,8 @@ v2 introduces a redesigned handler signature. Instead of returning values and us
 
 ## Quick upgrade checklist
 
-- [ ] Update `@mctx-ai/app` to `^2.0.0` and `@mctx-ai/dev` to `^2.0.0`
+- [ ] Replace `@mctx-ai/app` with `@mctx-ai/mcp` in `package.json` and update all imports
+- [ ] Update `@mctx-ai/dev` to `^2.0.0`
 - [ ] Rename all handler signatures from `(args, ask, ctx)` or `(mctx, args, ask)` to `(mctx, req, res)`
 - [ ] Replace `return value` with `res.send(value)` in every handler
 - [ ] Replace `yield step()` progress tracking with `res.progress(current, total?)`
@@ -80,7 +81,7 @@ const greet = (mctx, req, res) => {
 };
 greet.description = "Greet someone by name";
 greet.input = { name: T.string({ required: true }) };
-app.tool("greet", greet);
+server.tool("greet", greet);
 ```
 
 ---
@@ -113,7 +114,7 @@ async function migrate(mctx, req, res) {
   res.send("Migration complete");
 }
 migrate.input = { tables: T.array({ items: T.string(), required: true }) };
-app.tool("migrate", migrate);
+server.tool("migrate", migrate);
 ```
 
 ---
@@ -143,7 +144,7 @@ const smart = async (mctx, req, res) => {
   res.send(result);
 };
 smart.input = { question: T.string({ required: true }) };
-app.tool("smart", smart);
+server.tool("smart", smart);
 ```
 
 ---
@@ -165,7 +166,7 @@ app.resource("db://schema", schema);
 const schema = (mctx, req, res) => {
   res.send(JSON.stringify({ requestedBy: mctx.userId }));
 };
-app.resource("db://schema", schema);
+server.resource("db://schema", schema);
 ```
 
 For dynamic URI template resources:
@@ -189,7 +190,7 @@ const getCustomer = async (mctx, req, res) => {
   res.send(JSON.stringify(customer));
 };
 getCustomer.mimeType = "application/json";
-app.resource("db://customers/{customerId}", getCustomer);
+server.resource("db://customers/{customerId}", getCustomer);
 ```
 
 ---
@@ -227,7 +228,7 @@ codeReview.input = {
   code: T.string({ required: true }),
   language: T.string({ default: "javascript" }),
 };
-app.prompt("code-review", codeReview);
+server.prompt("code-review", codeReview);
 ```
 
 ---

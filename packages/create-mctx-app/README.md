@@ -16,7 +16,7 @@ npm create mctx-app my-app
 
 ## What you get
 
-- `@mctx-ai/app` — the zero-dependency MCP framework
+- `@mctx-ai/mcp` — the zero-dependency MCP framework
 - `@mctx-ai/dev` — hot-reload dev server with request logging
 - `esbuild` — fast bundler, pre-configured
 - An example `greet` tool ready to run
@@ -42,7 +42,7 @@ Connect your GitHub repo at [mctx.ai](https://mctx.ai) and deploy. You keep 80% 
 ## Links
 
 - [Framework docs](https://docs.mctx.ai) — tools, resources, prompts, and more
-- [@mctx-ai/app](https://github.com/mctx-ai/app) — the framework powering your server
+- [@mctx-ai/mcp](https://github.com/mctx-ai/app) — the framework powering your server
 - [Example server](https://github.com/mctx-ai/example-app) — a complete reference implementation
 - [Feedback](https://github.com/mctx-ai/feedback) — ideas, bugs, questions
 

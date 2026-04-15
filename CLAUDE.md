@@ -140,7 +140,6 @@ Handler functions receive three parameters: `(mctx, req, res)` for all handler t
 - **`types.js`** — `T` type system (T.string, T.number, T.boolean, T.array, T.object) compiles to JSON Schema
 - **`uri.js`** — RFC 6570 Level 1 URI template matching
 - **`conversation.js`** — Multi-message prompt builder (user.say, ai.say, attach, embed)
-- **`progress.js`** — Progress reporting via `res.progress(current, total?)`
 - **`log.js`** — RFC 5424 logging (8 severity levels, internal buffer with FIFO eviction)
 - **`sampling.js`** — LLM-in-the-loop via `res.ask(prompt)` (client sampling capability)
 - **`completion.js`** — Auto-completion from handlers, T.enum, or URI templates

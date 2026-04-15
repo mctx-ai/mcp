@@ -10,7 +10,7 @@ const version = selfPkg.version;
 const projectName = process.argv[2];
 
 if (!projectName) {
-  console.error("Usage: npm create mctx-app <project-name>");
+  console.error("Usage: npm create mctx-server <project-name>");
   process.exit(1);
 }
 

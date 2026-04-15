@@ -13,12 +13,12 @@ Creates an MCP server instance.
 
 ```js
 import { createServer } from "@mctx-ai/mcp";
-const app = createServer();
+const server = createServer();
 ```
 
 Returns an object with `.tool()`, `.resource()`, `.prompt()`, and `.fetch()` methods.
 
-### app.tool(name, handler)
+### server.tool(name, handler)
 
 Register a tool that AI clients can call.
 
@@ -31,7 +31,7 @@ greet.input = {
   name: T.string({ required: true }),
   greeting: T.string({ default: "Hello" }),
 };
-app.tool("greet", greet);
+server.tool("greet", greet);
 ```
 
 **Handler contract:**
@@ -45,7 +45,7 @@ app.tool("greet", greet);
 
 Binary content types (ImageContent, AudioContent per MCP spec) are planned for a future release.
 
-### app.resource(uri, handler)
+### server.resource(uri, handler)
 
 Register a resource. Use exact URIs for static resources, URI templates for dynamic ones.
 
@@ -55,19 +55,19 @@ const readme = (mctx, req, res) => {
   res.send("Content here");
 };
 readme.mimeType = "text/plain";
-app.resource("docs://readme", readme);
+server.resource("docs://readme", readme);
 
 // Dynamic (RFC 6570 Level 1 template)
 const user = (mctx, req, res) => {
   res.send(JSON.stringify({ id: req.userId }));
 };
 user.mimeType = "application/json";
-app.resource("user://{userId}", user);
+server.resource("user://{userId}", user);
 ```
 
 Resource handlers receive `(mctx, req, res)`. `mctx` is the ModelContext. For static resources `req` is `{}`. URI template parameters are available on `req` by name.
 
-### app.prompt(name, handler)
+### server.prompt(name, handler)
 
 Register a prompt template. Call `res.send()` with a string for single-message prompts, or pass a `conversation()` result for multi-message.
 
@@ -77,7 +77,7 @@ const review = (mctx, req, res) => {
   res.send(`Review: ${req.code}`);
 };
 review.input = { code: T.string({ required: true }) };
-app.prompt("code-review", review);
+server.prompt("code-review", review);
 
 // Multi-message
 const debug = (mctx, req, res) => {
@@ -86,17 +86,17 @@ const debug = (mctx, req, res) => {
   );
 };
 debug.input = { error: T.string({ required: true }) };
-app.prompt("debug", debug);
+server.prompt("debug", debug);
 ```
 
 Prompt handlers receive `(mctx, req, res)`. `mctx` is the ModelContext.
 
-### app.fetch(request, env, ctx)
+### server.fetch(request, env, ctx)
 
 The fetch handler. Compatible with Cloudflare Workers and the mctx platform.
 
 ```js
-export default { fetch: app.fetch };
+export default { fetch: server.fetch };
 ```
 
 ---

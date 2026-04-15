@@ -82,10 +82,7 @@ app.prompt("code-review", review);
 // Multi-message
 const debug = (mctx, req, res) => {
   res.send(
-    conversation(({ user, ai }) => [
-      user.say(`Debug: ${req.error}`),
-      ai.say("Analyzing..."),
-    ])
+    conversation(({ user, ai }) => [user.say(`Debug: ${req.error}`), ai.say("Analyzing...")]),
   );
 };
 debug.input = { error: T.string({ required: true }) };
@@ -110,9 +107,9 @@ export default { fetch: app.fetch };
 
 The first parameter of every handler. Provides per-request context.
 
-| Property   | Type     | Description                                                          |
-| ---------- | -------- | -------------------------------------------------------------------- |
-| `userId`   | `string \| undefined` | Stable, opaque identifier for the authenticated user. Extracted from the `X-Mctx-User-Id` header. `undefined` for unauthenticated requests. |
+| Property | Type                  | Description                                                                                                                                 |
+| -------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `userId` | `string \| undefined` | Stable, opaque identifier for the authenticated user. Extracted from the `X-Mctx-User-Id` header. `undefined` for unauthenticated requests. |
 
 ### req (Input)
 
@@ -121,8 +118,8 @@ The second parameter of every handler. Contains the validated input fields as di
 ```js
 // Given input: { name: T.string({ required: true }), age: T.number() }
 // Access as:
-req.name  // string
-req.age   // number | undefined
+req.name; // string
+req.age; // number | undefined
 ```
 
 For static resources, `req` is `{}`. For URI template resources, `req` contains the extracted template parameters.

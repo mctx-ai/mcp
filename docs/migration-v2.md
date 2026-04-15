@@ -220,7 +220,7 @@ const codeReview = (mctx, req, res) => {
     conversation(({ user }) => [
       user.say(`Review this ${req.language} code for user ${mctx.userId}:`),
       user.say(req.code),
-    ])
+    ]),
   );
 };
 codeReview.input = {

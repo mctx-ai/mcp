@@ -5,7 +5,7 @@
  * for tools/call handler dispatch in server.js.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { createServer, T } from "../src/index.js";
 
 // Helper to create a mock POST request with optional headers

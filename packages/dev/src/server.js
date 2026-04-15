@@ -43,7 +43,8 @@ function log(message, color = colors.reset) {
  */
 function logFramework(message, color = colors.reset) {
   console.log(
-    `${colors.gray}[${timestamp()}]${colors.reset} ${colors.bright}[mctx-dev]${colors.reset} ${color}${message}${colors.reset}`,
+    `${colors.gray}[${timestamp()}]${colors.reset} ${colors.bright}[mctx-dev]${colors.reset} ` +
+      `${color}${message}${colors.reset}`,
   );
 }
 
@@ -111,11 +112,17 @@ function formatError(error, rpcRequest) {
     error.message.startsWith('Resource "');
   if (isMcpHandlerError) {
     if (error.message.includes("not found")) {
-      formatted += `\n${colors.yellow}Hint:${colors.reset} Check if the ${rpcRequest.method.split("/")[0]} is registered in your server.\n`;
+      formatted +=
+        `\n${colors.yellow}Hint:${colors.reset} Check if the ` +
+        `${rpcRequest.method.split("/")[0]} is registered in your server.\n`;
     } else if (error.message.includes("required")) {
-      formatted += `\n${colors.yellow}Hint:${colors.reset} Check your request parameters. Some fields might be missing.\n`;
+      formatted +=
+        `\n${colors.yellow}Hint:${colors.reset} Check your request ` +
+        "parameters. Some fields might be missing.\n";
     } else if (error.message.includes("undefined")) {
-      formatted += `\n${colors.yellow}Hint:${colors.reset} Did you forget to return a value from your handler?\n`;
+      formatted +=
+        `\n${colors.yellow}Hint:${colors.reset} Did you forget to return ` +
+        "a value from your handler?\n";
     }
   }
 
@@ -138,8 +145,10 @@ function formatError(error, rpcRequest) {
  * Hop-by-hop headers are filtered out before forwarding to prevent header
  * forwarding edge cases in the dev server.
  *
- * @param {string} rawBody - The raw JSON string already read from the Node IncomingMessage
- * @param {import("http").IncomingHttpHeaders} incomingHeaders - Headers from the Node IncomingMessage
+ * @param {string} rawBody - The raw JSON string already read from the Node
+ *   IncomingMessage
+ * @param {import("http").IncomingHttpHeaders} incomingHeaders - Headers from
+ *   the Node IncomingMessage
  */
 function createRequest(rawBody, incomingHeaders = {}) {
   // Hop-by-hop headers that should not be forwarded
@@ -204,7 +213,8 @@ export async function startDevServer(entryUrl, port) {
     const namedExports = Object.keys(appModule).filter((k) => k !== "default");
     if (namedExports.length > 0) {
       logFramework(
-        `[warn] Module has non-default exports: ${namedExports.join(", ")}. Module-level state in these exports will persist across hot reloads.`,
+        `[warn] Module has non-default exports: ${namedExports.join(", ")}. ` +
+          "Module-level state in these exports will persist across hot reloads.",
         colors.yellow,
       );
     }
@@ -468,7 +478,8 @@ export async function startDevServer(entryUrl, port) {
             const dataStr =
               typeof entry.data === "string" ? entry.data : JSON.stringify(entry.data);
             console.log(
-              `${colors.gray}[${timestamp()}]${colors.reset} ${levelColor}[log:${entry.level}]${colors.reset} ${dataStr}`,
+              `${colors.gray}[${timestamp()}]${colors.reset} ` +
+                `${levelColor}[log:${entry.level}]${colors.reset} ${dataStr}`,
             );
           }
         }
@@ -491,10 +502,7 @@ export async function startDevServer(entryUrl, port) {
         // Slow tool warning: if tools/call took >1000ms
         if (rpcRequest.method === "tools/call" && elapsed > 1000) {
           const toolName = rpcRequest.params?.name || "unknown";
-          logFramework(
-            `[warn] Slow tool: ${toolName} took ${elapsed}ms`,
-            colors.yellow,
-          );
+          logFramework(`[warn] Slow tool: ${toolName} took ${elapsed}ms`, colors.yellow);
         }
 
         // If error, show details
@@ -563,7 +571,8 @@ ${colors.bright}Test with curl:${colors.reset}
     -H "Content-Type: application/json" \\
     -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'${colors.reset}
 
-${colors.bright}Claude Desktop config${colors.reset} ${colors.dim}(~/.config/claude/claude_desktop_config.json):${colors.reset}
+${colors.bright}Claude Desktop config${colors.reset}
+  ${colors.dim}(~/.config/claude/claude_desktop_config.json):${colors.reset}
   ${colors.dim}{
     "mcpServers": {
       "my-app": {

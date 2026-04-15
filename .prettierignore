@@ -1,0 +1,21 @@
+# Development and build artifacts
+node_modules/
+dist/
+build/
+
+# Kanban board state (managed by kanban CLI)
+.kanban/
+
+# Scratchpad for temporary working files
+.scratchpad/
+
+# Claude configuration and private files
+.claude/
+
+# Git and version control
+.git/
+.gitignore
+
+# Environment files
+.env
+.env.local

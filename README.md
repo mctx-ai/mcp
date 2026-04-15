@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>Build Apps for AI with an Express-like API.</strong>
+  <strong>Build MCP servers with an Express-like API.</strong>
 </p>
 
 <p align="center">
@@ -12,9 +12,11 @@
   <a href="https://github.com/mctx-ai/app/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/mctx-ai/app/ci.yml" alt="CI"/></a>
 </p>
 
-```bash
-npm install @mctx-ai/app
-```
+`@mctx-ai/app` is a minimal framework for building [Model Context Protocol](https://modelcontextprotocol.io) servers. Register tools, resources, and prompts — the framework handles protocol negotiation, input validation, error sanitization, and CORS. You write the business logic.
+
+---
+
+## Quick Start
 
 ```javascript
 import { createServer, T } from "@mctx-ai/app";
@@ -23,8 +25,8 @@ const app = createServer({
   instructions: "A greeting server. Use the greet tool to say hello.",
 });
 
-function greet({ name }) {
-  return `Hello, ${name}!`;
+function greet(mctx, req, res) {
+  res.send(`Hello, ${req.name}!`);
 }
 
 greet.description = "Greet someone by name";
@@ -37,48 +39,125 @@ app.tool("greet", greet);
 export default { fetch: app.fetch };
 ```
 
-That's a working app. The framework handles MCP protocol negotiation, input validation, error sanitization, CORS, capability detection, and real-time channel event emission. You write the business logic.
+That's a working MCP server. Run it locally with `npx mctx-dev index.js`.
 
 ---
 
-## Tools
+## Installation
 
-Tools are functions that AI can call -- like API endpoints. Define a function, attach `.description` and `.input`, and register it.
+**Scaffold a new project (recommended):**
 
-```javascript
-function add({ a, b }) {
-  return a + b;
-}
-
-add.description = "Add two numbers";
-add.input = {
-  a: T.number({ required: true, description: "First number" }),
-  b: T.number({ required: true, description: "Second number" }),
-};
-
-app.tool("add", add);
+```bash
+npx create-mctx-app my-app
+cd my-app
+npm install
+npx mctx-dev index.js
 ```
 
-Return a string and it becomes the tool's text response. Return an object and it gets JSON-serialized automatically.
+**Use the template repo:**
+
+[github.com/mctx-ai/example-app](https://github.com/mctx-ai/example-app) — click "Use this template" on GitHub.
+
+**Add to an existing project:**
+
+```bash
+npm install @mctx-ai/app
+```
+
+**Run the dev server:**
+
+```bash
+npx mctx-dev index.js
+```
+
+Hot reload is included. Changes to `index.js` restart the server automatically.
 
 ---
 
-## Resources
+## Features
 
-Resources are read-only data that AI can pull for context. They use URI schemes you define -- `docs://`, `db://`, anything.
+- **Zero runtime dependencies** — ships nothing you don't need
+- **TypeScript-ready** — full `.d.ts` type definitions included
+- **Hot reload dev server** — `mctx-dev` watches your files and restarts on change
+- **Input validation** — JSON Schema validation via the `T` type system
+- **Error sanitization** — secrets and stack traces never leak to clients
+- **MCP protocol handled** — capability negotiation, JSON-RPC 2.0, CORS — all automatic
+- **Cloudflare Workers** — exports a standard `fetch` handler, deploys anywhere
+
+---
+
+## API
+
+### Handler Signature
+
+Every handler — tools, resources, and prompts — uses the same three-argument signature:
+
+```javascript
+function myHandler(mctx, req, res) {
+  res.send("result");
+}
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `mctx` | `ModelContext` | Per-request context. `mctx.userId` is the authenticated user ID (or `undefined`). |
+| `req` | `object` | Input arguments, validated against the handler's `input` schema. |
+| `res` | `Response` | Output port. Call `res.send()` to return a result. |
+
+### Tools
+
+Tools are functions AI can call — like API endpoints.
+
+```javascript
+function search(mctx, req, res) {
+  const results = db.query(req.query, { limit: req.limit });
+  res.send(results);
+}
+
+search.description = "Search the database";
+search.input = {
+  query: T.string({ required: true, description: "Search query" }),
+  limit: T.number({ default: 10, description: "Max results" }),
+};
+
+app.tool("search", search);
+```
+
+For long-running tools, report progress with `res.progress(current, total)`:
+
+```javascript
+async function migrate(mctx, req, res) {
+  for (let i = 0; i < req.tables.length; i++) {
+    await copyTable(req.tables[i]);
+    res.progress(i + 1, req.tables.length);
+  }
+  res.send(`Migrated ${req.tables.length} tables`);
+}
+
+migrate.description = "Migrate database tables";
+migrate.input = {
+  tables: T.array({ required: true, items: T.string() }),
+};
+
+app.tool("migrate", migrate);
+```
+
+### Resources
+
+Resources are read-only data AI can pull for context. Use static URIs or URI templates.
 
 ```javascript
 // Static resource
-function readme() {
-  return "# My Project\nWelcome to the docs.";
+function readme(mctx, req, res) {
+  res.send("# My Project\nWelcome to the docs.");
 }
 
 readme.mimeType = "text/markdown";
 app.resource("docs://readme", readme);
 
-// Dynamic template
-function getUser({ userId }) {
-  return JSON.stringify(db.findUser(userId));
+// Dynamic template — {userId} is extracted and available on req
+function getUser(mctx, req, res) {
+  res.send(JSON.stringify(db.findUser(req.userId)));
 }
 
 getUser.description = "Fetch a user by ID";
@@ -86,40 +165,36 @@ getUser.mimeType = "application/json";
 app.resource("user://{userId}", getUser);
 ```
 
-Static URIs show up in `resources/list`. Templates with `{param}` placeholders show up in `resources/templates/list` and receive extracted params as the first argument.
+### Prompts
 
----
-
-## Prompts
-
-Prompts are reusable message templates for AI interactions. Return a string for simple cases, or use `conversation()` for multi-message flows.
+Prompts are reusable message templates for initializing AI conversations.
 
 ```javascript
-function codeReview({ code, language }) {
-  return `Review this ${language} code for bugs and style issues:\n\n${code}`;
+function codeReview(mctx, req, res) {
+  res.send(`Review this ${req.language} code for bugs:\n\n${req.code}`);
 }
 
 codeReview.description = "Review code for issues";
 codeReview.input = {
-  code: T.string({ required: true, description: "Code to review" }),
+  code: T.string({ required: true }),
   language: T.string({ description: "Programming language" }),
 };
 
 app.prompt("code-review", codeReview);
 ```
 
-For multi-message prompts with images or embedded resources:
+For multi-message prompts with images or embedded resources, use `conversation()`:
 
 ```javascript
 import { conversation } from "@mctx-ai/app";
 
-function debug({ error, screenshot }) {
-  return conversation(({ user, ai }) => [
+function debug(mctx, req, res) {
+  res.send(conversation(({ user, ai }) => [
     user.say("I hit this error:"),
-    user.say(error),
-    user.attach(screenshot, "image/png"),
+    user.say(req.error),
+    user.attach(req.screenshot, "image/png"),
     ai.say("I'll analyze the error and screenshot together."),
-  ]);
+  ]));
 }
 
 debug.description = "Debug with error + screenshot";
@@ -131,51 +206,35 @@ debug.input = {
 app.prompt("debug", debug);
 ```
 
----
+### LLM Sampling
 
-## Type System
+Use `res.ask()` to request an LLM completion from the client (LLM-in-the-loop):
 
-The `T` object builds JSON Schema definitions for tool and prompt inputs.
+```javascript
+async function summarize(mctx, req, res) {
+  const content = await fetchPage(req.url);
+  const summary = res.ask ? await res.ask(`Summarize:\n\n${content}`) : content;
+  res.send(summary);
+}
+```
 
-| Type          | Example                             | Key Options                                           |
-| ------------- | ----------------------------------- | ----------------------------------------------------- |
-| `T.string()`  | `T.string({ required: true })`      | `enum`, `minLength`, `maxLength`, `pattern`, `format` |
-| `T.number()`  | `T.number({ min: 0, max: 100 })`    | `min`, `max`, `enum`                                  |
-| `T.boolean()` | `T.boolean({ default: false })`     | `default`                                             |
-| `T.array()`   | `T.array({ items: T.string() })`    | `items`                                               |
-| `T.object()`  | `T.object({ properties: { ... } })` | `properties`, `additionalProperties`                  |
+`res.ask` is `null` when the client does not support sampling — always check before calling.
+
+### Type System
+
+`T` builds JSON Schema definitions for tool and prompt inputs.
+
+| Type | Example |
+|------|---------|
+| `T.string()` | `T.string({ required: true, enum: ["a", "b"] })` |
+| `T.number()` | `T.number({ min: 0, max: 100 })` |
+| `T.boolean()` | `T.boolean({ default: false })` |
+| `T.array()` | `T.array({ items: T.string() })` |
+| `T.object()` | `T.object({ properties: { key: T.string() } })` |
 
 All types accept `required`, `description`, and `default`.
 
----
-
-## Advanced Features
-
-### Progress Reporting
-
-Use generator functions and `createProgress()` for long-running tools.
-
-```javascript
-import { createProgress } from "@mctx-ai/app";
-
-function* migrate({ tables }) {
-  const step = createProgress(tables.length);
-  for (const table of tables) {
-    yield step();
-    copyTable(table);
-  }
-  return `Migrated ${tables.length} tables`;
-}
-
-migrate.description = "Migrate database tables";
-migrate.input = {
-  tables: T.array({ required: true, items: T.string() }),
-};
-
-app.tool("migrate", migrate);
-```
-
-### Structured Logging
+### Logging
 
 ```javascript
 import { log } from "@mctx-ai/app";
@@ -187,75 +246,19 @@ log.error("Connection failed");
 
 Levels follow RFC 5424: `debug`, `info`, `notice`, `warning`, `error`, `critical`, `alert`, `emergency`.
 
-### Sampling (ask)
-
-Tools receive an optional `ask` function as their second argument for LLM-in-the-loop patterns.
-
-```javascript
-async function summarize({ url }, ask) {
-  const content = await fetchPage(url);
-
-  if (!ask) return content;
-
-  return await ask(`Summarize this page:\n\n${content}`);
-}
-```
-
-### Request Context (ctx)
-
-Handlers receive an optional `ctx` object as their third argument. It carries per-request context
-populated automatically by the platform.
-
-```javascript
-function greet({ name }, _ask, ctx) {
-  if (ctx.userId) log.info("Request from user", ctx.userId);
-
-  return "Hello, " + name;
-}
-```
-
-| Property     | Type                  | Description                                                                                                                                                                                                                                                                                                                                                                   |
-| ------------ | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ctx.userId` | `string \| undefined` | Stable, opaque identifier for the authenticated user within this server. Populated from the `X-Mctx-User-Id` header injected by the mctx dispatch worker. **Note:** The same user receives a different identifier on each MCP server, preventing cross-server user correlation. The ID is stable only within a given server. `undefined` when the request is unauthenticated. |
-
-The `ctx` parameter is available on all handler types: tools, resources, and prompts.
-
----
-
-## Development
-
-Scaffold a new app:
-
-```bash
-npm create mctx-app my-app
-cd my-app
-npm install
-npm run dev
-```
-
-`npm run dev` starts `mctx-dev` with hot reload for local testing.
-
 ---
 
 ## Deploy
 
-Push to GitHub and connect your repo at [mctx.ai](https://mctx.ai). Your App goes live — you keep 80% of every subscription.
+Push to GitHub and connect your repo at [mctx.ai](https://mctx.ai). Your app goes live — you keep 80% of every subscription.
 
 Full deployment guide at [docs.mctx.ai](https://docs.mctx.ai).
 
 ---
 
-## Making Your App Discoverable
+## Contributing
 
-Your `package.json` fields directly affect how your app appears on [mctx.ai](https://mctx.ai), in search engines, and in AI assistant recommendations. Get these right and subscribers find you.
-
-**`description`** — This is marketing copy for potential subscribers _and_ an SEO field that Google indexes. You have 1,000 characters — use them. Write to sell: what your app does, specific capabilities, use cases, and the value it provides. This also appears in the [MCP Community Registry](https://registry.modelcontextprotocol.io), but display truncates around 100–150 characters, so front-load the most compelling information.
-
-**`homepage`** (optional) — Appears as a clickable link on your public mctx.ai app page. Set it to a project website or your GitHub repo URL. If your repo is private, leave this unset — private repo URLs show a 404 to visitors.
-
-**`README.md`** — Displayed on your public mctx.ai app page and submitted to [Context7](https://context7.com) for AI assistant discovery. Write it as real documentation: what your app does, what tools it provides, use cases, prerequisites. Lead with the most important information — the first ~4,000 characters are what AI assistants use when recommending your app to developers.
-
-See [docs.mctx.ai](https://docs.mctx.ai) for detailed guidance on all discoverability fields.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) and [GitHub Issues](https://github.com/mctx-ai/app/issues).
 
 ---
 
@@ -263,7 +266,7 @@ See [docs.mctx.ai](https://docs.mctx.ai) for detailed guidance on all discoverab
 
 - [Documentation](https://docs.mctx.ai)
 - [Example App](https://github.com/mctx-ai/example-app)
-- [GitHub Issues](https://github.com/mctx-ai/app/issues)
+- [npm: @mctx-ai/app](https://www.npmjs.com/package/@mctx-ai/app)
 
 ---
 

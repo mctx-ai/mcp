@@ -68,7 +68,7 @@ describe("basic functionality smoke test", () => {
   it("creates a server and responds to tools/list", async () => {
     const app = createServer();
 
-    const greet = (_ctx, { name }) => `Hello, ${name}!`;
+    const greet = (_mctx, { name }) => `Hello, ${name}!`;
     greet.description = "Greets a person";
     greet.input = {
       name: T.string({ required: true }),
@@ -203,7 +203,7 @@ describe("minimal working example", () => {
     const app = createServer();
 
     // Register a tool
-    const echo = (_ctx, { message }) => message;
+    const echo = (_mctx, { message }) => message;
     echo.input = {
       message: T.string({ required: true }),
     };

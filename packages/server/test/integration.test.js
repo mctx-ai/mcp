@@ -23,7 +23,7 @@ describe("full server integration", () => {
     });
 
     // Register tool
-    const calculate = (_ctx, { operation, a, b }) => {
+    const calculate = (_mctx, { operation, a, b }) => {
       switch (operation) {
         case "add":
           return a + b;
@@ -125,7 +125,7 @@ describe("full server integration", () => {
     const app = createServer();
 
     // Register tool
-    const calculate = (_ctx, { operation, a, b }) => {
+    const calculate = (_mctx, { operation, a, b }) => {
       switch (operation) {
         case "add":
           return a + b;
@@ -157,7 +157,7 @@ describe("full server integration", () => {
     app.resource("https:/example.com/docs/calculator", docsResource);
 
     // Register template resource (with canonicalized URI - single slash after scheme)
-    const historyResource = (_ctx, { operationId }) => {
+    const historyResource = (_mctx, { operationId }) => {
       return JSON.stringify({
         id: operationId,
         operation: "add",
@@ -170,7 +170,7 @@ describe("full server integration", () => {
     app.resource("https:/example.com/history/{operationId}", historyResource);
 
     // Register prompt
-    const mathPrompt = (_ctx, { problem }) => {
+    const mathPrompt = (_mctx, { problem }) => {
       return conversation(({ user, ai }) => [
         user.say(`Solve this math problem: ${problem}`),
         ai.say("I can help with that. What operation do you need?"),
@@ -605,11 +605,11 @@ describe("security integration", () => {
 });
 
 describe("channel events end-to-end", () => {
-  it("tool handler calling ctx.emit() produces X-Mctx-Event header on response", async () => {
+  it("tool handler calling mctx.emit() produces X-Mctx-Event header on response", async () => {
     const app = createServer();
 
-    const emitTool = (ctx, _args, _ask) => {
-      ctx.emit("Task started", { eventType: "task_status", meta: { step: "begin" } });
+    const emitTool = (mctx, _args, _ask) => {
+      mctx.emit("Task started", { eventType: "task_status", meta: { step: "begin" } });
       return "done";
     };
     emitTool.input = {};
@@ -637,12 +637,12 @@ describe("channel events end-to-end", () => {
     });
   });
 
-  it("tool handler calling ctx.cancel() produces X-Mctx-Cancel header on response", async () => {
+  it("tool handler calling mctx.cancel() produces X-Mctx-Cancel header on response", async () => {
     const app = createServer();
 
-    const cancelTool = (ctx, _args, _ask) => {
-      const eventId = ctx.emit("Scheduled task", { deliverAt: "2026-04-01T12:00:00Z" });
-      ctx.cancel(eventId);
+    const cancelTool = (mctx, _args, _ask) => {
+      const eventId = mctx.emit("Scheduled task", { deliverAt: "2026-04-01T12:00:00Z" });
+      mctx.cancel(eventId);
       return "cancelled";
     };
     cancelTool.input = {};
@@ -672,8 +672,8 @@ describe("channel events end-to-end", () => {
   it("X-Mctx-Event headers survive on error response when tool throws after emitting", async () => {
     const app = createServer();
 
-    const throwAfterEmitTool = (ctx, _args, _ask) => {
-      ctx.emit("Before failure", { eventType: "warning" });
+    const throwAfterEmitTool = (mctx, _args, _ask) => {
+      mctx.emit("Before failure", { eventType: "warning" });
       throw new Error("Tool failed after emit");
     };
     throwAfterEmitTool.input = {};

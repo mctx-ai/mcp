@@ -23,7 +23,7 @@ Returns an object with `.tool()`, `.resource()`, `.prompt()`, and `.fetch()` met
 Register a tool that AI clients can call.
 
 ```js
-const greet = (ctx, { name, greeting }) => `${greeting}, ${name}!`;
+const greet = (mctx, { name, greeting }) => `${greeting}, ${name}!`;
 greet.description = "Greets a person";
 greet.input = {
   name: T.string({ required: true }),
@@ -34,7 +34,7 @@ app.tool("greet", greet);
 
 **Handler contract:**
 
-- Receives `ctx` (McpContext) as first parameter — provides `ctx.userId`, `ctx.emit`, and `ctx.cancel`
+- Receives `mctx` (McpContext) as first parameter — provides `mctx.userId`, `mctx.emit`, and `mctx.cancel`
 - Receives parsed arguments as second parameter
 - Third parameter `ask` is a function when the client advertises sampling capability, or `null` if the client does not support sampling — always check before calling
 - Returns `string`, `object` (auto-serialized), or MCP content array
@@ -49,17 +49,17 @@ Register a resource. Use exact URIs for static resources, URI templates for dyna
 
 ```js
 // Static
-const readme = (ctx) => "Content here";
+const readme = (mctx) => "Content here";
 readme.mimeType = "text/plain";
 app.resource("docs://readme", readme);
 
 // Dynamic (RFC 6570 Level 1 template)
-const user = (ctx, { userId }) => JSON.stringify({ id: userId });
+const user = (mctx, { userId }) => JSON.stringify({ id: userId });
 user.mimeType = "application/json";
 app.resource("user://{userId}", user);
 ```
 
-Resource handlers receive `(ctx, params, ask)`. `ctx` is the McpContext. For static resources `params` is `{}`.
+Resource handlers receive `(mctx, params, ask)`. `mctx` is the McpContext. For static resources `params` is `{}`.
 
 ### app.prompt(name, handler)
 
@@ -67,18 +67,18 @@ Register a prompt template. Return a string for single-message prompts, or use `
 
 ```js
 // Single message
-const review = (ctx, { code }) => `Review: ${code}`;
+const review = (mctx, { code }) => `Review: ${code}`;
 review.input = { code: T.string({ required: true }) };
 app.prompt("code-review", review);
 
 // Multi-message
-const debug = (ctx, { error }) =>
+const debug = (mctx, { error }) =>
   conversation(({ user, ai }) => [user.say(`Debug: ${error}`), ai.say("Analyzing...")]);
 debug.input = { error: T.string({ required: true }) };
 app.prompt("debug", debug);
 ```
 
-Prompt handlers receive `(ctx, args, ask)`. `ctx` is the McpContext.
+Prompt handlers receive `(mctx, args, ask)`. `mctx` is the McpContext.
 
 ### app.fetch(request, env, ctx)
 
@@ -187,7 +187,7 @@ Creates a step function for generator-based tools.
 ```js
 import { createProgress } from "@mctx-ai/app";
 
-const task = function* (ctx, { data }) {
+const task = function* (mctx, { data }) {
   const step = createProgress(3);
   yield step();
   yield step();
@@ -269,7 +269,7 @@ All handlers receive a third parameter `ask` that enables LLM-in-the-loop sampli
 Always guard before calling `ask`:
 
 ```js
-const smart = async (ctx, { question }, ask) => {
+const smart = async (mctx, { question }, ask) => {
   if (!ask) {
     return `Answer: ${question}`;
   }
@@ -285,7 +285,7 @@ const smart = async (ctx, { question }, ask) => {
 Pass an options object for full control over the `sampling/createMessage` request:
 
 ```js
-const smart = async (ctx, { question }, ask) => {
+const smart = async (mctx, { question }, ask) => {
   if (!ask) return `Answer: ${question}`;
 
   const result = await ask({

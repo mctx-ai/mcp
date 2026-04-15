@@ -36,7 +36,7 @@ describe("tool registration and tools/list", () => {
   it("registers and lists tools", async () => {
     const app = createServer();
 
-    const greet = (_ctx, { name }) => `Hello, ${name}!`;
+    const greet = (_mctx, { name }) => `Hello, ${name}!`;
     greet.description = "Greets a person";
     greet.input = {
       name: T.string({ required: true, description: "Name to greet" }),
@@ -159,7 +159,7 @@ describe("tools/call", () => {
   it("calls tool with string return", async () => {
     const app = createServer();
 
-    const greet = (_ctx, { name }) => `Hello, ${name}!`;
+    const greet = (_mctx, { name }) => `Hello, ${name}!`;
     greet.input = { name: T.string({ required: true }) };
 
     app.tool("greet", greet);
@@ -211,7 +211,7 @@ describe("tools/call", () => {
   it("calls async tool handler", async () => {
     const app = createServer();
 
-    const asyncTool = async (_ctx, { delay }) => {
+    const asyncTool = async (_mctx, { delay }) => {
       await new Promise((resolve) => setTimeout(resolve, delay));
       return `Completed after ${delay}ms`;
     };
@@ -304,7 +304,7 @@ describe("tools/call", () => {
   it("handles missing arguments gracefully with empty object fallback", async () => {
     const app = createServer();
 
-    const tool = (_ctx, args) => JSON.stringify(args);
+    const tool = (_mctx, args) => JSON.stringify(args);
     tool.input = {};
     app.tool("test", tool);
 
@@ -328,7 +328,7 @@ describe("tools/call", () => {
   it("sanitizes input arguments (prototype pollution)", async () => {
     const app = createServer();
 
-    const tool = (_ctx, args) => {
+    const tool = (_mctx, args) => {
       // Check if __proto__ is an own property (should be false after sanitization)
       return { hasProto: Object.hasOwnProperty.call(args, "__proto__") };
     };
@@ -439,7 +439,7 @@ describe("resources/read", () => {
   it("reads template resource with parameter extraction", async () => {
     const app = createServer();
 
-    const userResource = (_ctx, params) => {
+    const userResource = (_mctx, params) => {
       // Handler receives params object, extract userId from it
       const userId = params?.userId || "unknown";
       return `User: ${userId}`;
@@ -522,7 +522,7 @@ describe("resources/read", () => {
   it("allows custom URI scheme templates with parameter extraction", async () => {
     const app = createServer();
 
-    const userResource = (_ctx, params) => {
+    const userResource = (_mctx, params) => {
       const userId = params?.userId || "unknown";
       return `User ID: ${userId}`;
     };
@@ -631,7 +631,7 @@ describe("resources/read", () => {
   it("detects path traversal in custom scheme with template params", async () => {
     const app = createServer();
 
-    const userResource = (_ctx, params) => {
+    const userResource = (_mctx, params) => {
       const userId = params?.userId || "unknown";
       return `User ID: ${userId}`;
     };
@@ -805,7 +805,7 @@ describe("prompts/list", () => {
   it("lists prompts with arguments", async () => {
     const app = createServer();
 
-    const codeReview = (_ctx, { code }) => `Review: ${code}`;
+    const codeReview = (_mctx, { code }) => `Review: ${code}`;
     codeReview.description = "Code review prompt";
     codeReview.input = {
       code: T.string({ required: true, description: "Code to review" }),
@@ -841,7 +841,7 @@ describe("prompts/get", () => {
   it("gets prompt with string return", async () => {
     const app = createServer();
 
-    const simplePrompt = (_ctx, { topic }) => `Tell me about ${topic}`;
+    const simplePrompt = (_mctx, { topic }) => `Tell me about ${topic}`;
     simplePrompt.input = { topic: T.string({ required: true }) };
 
     app.prompt("simple", simplePrompt);
@@ -1404,11 +1404,11 @@ function createRequestWithHeaders(body, headers) {
   });
 }
 
-describe("ctx.userId — X-Mctx-User-Id header forwarding", () => {
+describe("mctx.userId — X-Mctx-User-Id header forwarding", () => {
   it("passes userId to tool handler when X-Mctx-User-Id header is present", async () => {
     const app = createServer();
 
-    const whoami = (ctx, _args, _ask) => ctx.userId ?? "anonymous";
+    const whoami = (mctx, _args, _ask) => mctx.userId ?? "anonymous";
     whoami.input = {};
     app.tool("whoami", whoami);
 
@@ -1431,7 +1431,7 @@ describe("ctx.userId — X-Mctx-User-Id header forwarding", () => {
   it("passes undefined userId to tool handler when X-Mctx-User-Id header is absent", async () => {
     const app = createServer();
 
-    const whoami = (ctx, _args, _ask) => (ctx.userId === undefined ? "no-user" : ctx.userId);
+    const whoami = (mctx, _args, _ask) => (mctx.userId === undefined ? "no-user" : mctx.userId);
     whoami.input = {};
     app.tool("whoami", whoami);
 
@@ -1451,7 +1451,7 @@ describe("ctx.userId — X-Mctx-User-Id header forwarding", () => {
   it("passes userId to resource handler when X-Mctx-User-Id header is present", async () => {
     const app = createServer();
 
-    const profileResource = (ctx, _params, _ask) => `profile:${ctx.userId ?? "anonymous"}`;
+    const profileResource = (mctx, _params, _ask) => `profile:${mctx.userId ?? "anonymous"}`;
     profileResource.mimeType = "text/plain";
     app.resource("docs://profile", profileResource);
 
@@ -1474,8 +1474,8 @@ describe("ctx.userId — X-Mctx-User-Id header forwarding", () => {
   it("passes undefined userId to resource handler when X-Mctx-User-Id header is absent", async () => {
     const app = createServer();
 
-    const profileResource = (ctx, _params, _ask) =>
-      ctx.userId === undefined ? "no-user" : ctx.userId;
+    const profileResource = (mctx, _params, _ask) =>
+      mctx.userId === undefined ? "no-user" : mctx.userId;
     profileResource.mimeType = "text/plain";
     app.resource("docs://profile", profileResource);
 
@@ -1495,7 +1495,7 @@ describe("ctx.userId — X-Mctx-User-Id header forwarding", () => {
   it("passes userId to prompt handler when X-Mctx-User-Id header is present", async () => {
     const app = createServer();
 
-    const greetPrompt = (ctx, _args, _ask) => `Hello, ${ctx.userId ?? "stranger"}!`;
+    const greetPrompt = (mctx, _args, _ask) => `Hello, ${mctx.userId ?? "stranger"}!`;
     greetPrompt.input = {};
     app.prompt("greet", greetPrompt);
 
@@ -1518,8 +1518,8 @@ describe("ctx.userId — X-Mctx-User-Id header forwarding", () => {
   it("passes undefined userId to prompt handler when X-Mctx-User-Id header is absent", async () => {
     const app = createServer();
 
-    const greetPrompt = (ctx, _args, _ask) =>
-      ctx.userId === undefined ? "no-user" : `Hello, ${ctx.userId}!`;
+    const greetPrompt = (mctx, _args, _ask) =>
+      mctx.userId === undefined ? "no-user" : `Hello, ${mctx.userId}!`;
     greetPrompt.input = {};
     app.prompt("greet", greetPrompt);
 
@@ -1539,8 +1539,8 @@ describe("ctx.userId — X-Mctx-User-Id header forwarding", () => {
   it("two-parameter tool handler continues to work without modification", async () => {
     const app = createServer();
 
-    // Declares only (ctx, args) — no ask param
-    const echo = (_ctx, { message }) => message;
+    // Declares only (mctx, args) — no ask param
+    const echo = (_mctx, { message }) => message;
     echo.input = { message: { type: "string" } };
     app.tool("echo", echo);
 

@@ -21,7 +21,7 @@ describe("dynamic resource template matching", () => {
   it("should handle multiple numeric userId values consistently", async () => {
     const app = createServer();
 
-    const userResource = (_ctx, params) => {
+    const userResource = (_mctx, params) => {
       const userId = params?.userId || "unknown";
       return `User ID: ${userId}`;
     };
@@ -56,7 +56,7 @@ describe("dynamic resource template matching", () => {
   it("should handle alphanumeric userId values", async () => {
     const app = createServer();
 
-    const userResource = (_ctx, params) => {
+    const userResource = (_mctx, params) => {
       const userId = params?.userId || "unknown";
       return `User: ${userId}`;
     };
@@ -89,7 +89,7 @@ describe("dynamic resource template matching", () => {
   it("should still block path traversal in request URIs", async () => {
     const app = createServer();
 
-    const userResource = (_ctx, params) => {
+    const userResource = (_mctx, params) => {
       return `User: ${params?.userId || "unknown"}`;
     };
     userResource.mimeType = "text/plain";

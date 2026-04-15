@@ -69,7 +69,7 @@ describe("handleInitialize - client capability storage", () => {
     const app = createServer();
 
     let receivedAsk;
-    const probe = (_ctx, _args, ask) => {
+    const probe = (_mctx, _args, ask) => {
       receivedAsk = ask;
       return "ok";
     };
@@ -93,7 +93,7 @@ describe("ask is null when client does not support sampling", () => {
     const app = createServer();
 
     let receivedAsk = "sentinel";
-    const probe = (_ctx, _args, ask) => {
+    const probe = (_mctx, _args, ask) => {
       receivedAsk = ask;
       return "ok";
     };
@@ -143,7 +143,7 @@ describe("buildSendRequest - JSON-RPC envelope", () => {
     const SESSION_ID = "test-session-abc";
 
     // Register a tool that calls ask()
-    const asker = async (_ctx, _args, ask) => {
+    const asker = async (_mctx, _args, ask) => {
       await ask("hello from tool");
       return "done";
     };
@@ -202,7 +202,7 @@ describe("buildSendRequest - JSON-RPC error propagation", () => {
     };
 
     let caughtError = null;
-    const asker = async (_ctx, _args, ask) => {
+    const asker = async (_mctx, _args, ask) => {
       try {
         await ask("this will fail");
       } catch (err) {

@@ -25,7 +25,7 @@ export interface Server {
    *
    * @example
    * ```typescript
-   * server.tool('add', (ctx, args: { a: number; b: number }) => {
+   * server.tool('add', (mctx, args: { a: number; b: number }) => {
    *   return args.a + args.b;
    * });
    * ```
@@ -33,7 +33,7 @@ export interface Server {
    * @example
    * // Generator tool with progress tracking
    * ```typescript
-   * server.tool('migrate', function* (ctx, args: { sourceDb: string; targetDb: string }) {
+   * server.tool('migrate', function* (mctx, args: { sourceDb: string; targetDb: string }) {
    *   const step = createProgress(5);
    *   yield step(); // Progress: 1/5
    *   // ... do work
@@ -54,12 +54,12 @@ export interface Server {
    * @example
    * ```typescript
    * // Static resource
-   * server.resource('db://customers/schema', (ctx) => {
+   * server.resource('db://customers/schema', (mctx) => {
    *   return JSON.stringify({ ... });
    * });
    *
    * // Dynamic resource with template
-   * server.resource('db://customers/{id}', (ctx, params) => {
+   * server.resource('db://customers/{id}', (mctx, params) => {
    *   return getCustomer(params.id);
    * });
    * ```
@@ -76,7 +76,7 @@ export interface Server {
    *
    * @example
    * ```typescript
-   * server.prompt('code-review', (ctx, args: { code: string }) => {
+   * server.prompt('code-review', (mctx, args: { code: string }) => {
    *   return conversation(({ user }) => [
    *     user.say("Review this code:"),
    *     user.say(args.code),
@@ -135,7 +135,7 @@ export interface ServerOptions {
  *   instructions: "You help developers debug CI pipelines..."
  * });
  *
- * server.tool('greet', (ctx, args: { name: string }) => {
+ * server.tool('greet', (mctx, args: { name: string }) => {
  *   return `Hello, ${args.name}!`;
  * });
  *
@@ -184,10 +184,10 @@ export interface ChannelEventOptions {
  *
  * @example
  * ```typescript
- * // In a tool handler — use ctx.emit
- * function myTool(ctx, args: { name: string }, ask) {
- *   const eventId = ctx.emit("Processing started", { eventType: "status", meta: { name: args.name } });
- *   // eventId can be used later with ctx.cancel(eventId)
+ * // In a tool handler — use mctx.emit
+ * function myTool(mctx, args: { name: string }, ask) {
+ *   const eventId = mctx.emit("Processing started", { eventType: "status", meta: { name: args.name } });
+ *   // eventId can be used later with mctx.cancel(eventId)
  *   return "done";
  * }
  * ```
@@ -201,9 +201,9 @@ export type EmitFunction = (content: string, options?: ChannelEventOptions) => s
  *
  * @example
  * ```typescript
- * // In a tool handler — use ctx.cancel
- * function myTool(ctx, args: { eventId: string }, ask) {
- *   ctx.cancel(args.eventId);
+ * // In a tool handler — use mctx.cancel
+ * function myTool(mctx, args: { eventId: string }, ask) {
+ *   mctx.cancel(args.eventId);
  *   return "cancelled";
  * }
  * ```
@@ -252,7 +252,7 @@ export interface McpContext {
  * Tool handler function (non-generator).
  * Receives arguments and optional ask function for LLM sampling.
  *
- * @param ctx - McpContext with userId, emit, and cancel
+ * @param mctx - McpContext with userId, emit, and cancel
  * @param args - Tool arguments (validated against handler.input schema)
  * @param ask - Optional LLM sampling function (null if not supported)
  * @returns Tool result (string, object, or Promise thereof)
@@ -287,7 +287,7 @@ export interface ToolAnnotations {
 }
 
 export type ToolHandler = {
-  (ctx: McpContext, args: Record<string, any>, ask?: AskFunction | null): any | Promise<any>;
+  (mctx: McpContext, args: Record<string, any>, ask?: AskFunction | null): any | Promise<any>;
   /** Tool description for documentation */
   description?: string;
   /** Input schema definition using T types */
@@ -302,7 +302,7 @@ export type ToolHandler = {
  * Generator tool handler function (for progress tracking).
  * Yields progress notifications and returns final result.
  *
- * @param ctx - McpContext with userId, emit, and cancel
+ * @param mctx - McpContext with userId, emit, and cancel
  * @param args - Tool arguments
  * @param ask - Optional LLM sampling function
  * @yields Progress notifications or intermediate values
@@ -310,7 +310,7 @@ export type ToolHandler = {
  *
  * @example
  * ```typescript
- * function* migrate(ctx: McpContext, args: { tables: string[] }): Generator<ProgressNotification, string> {
+ * function* migrate(mctx: McpContext, args: { tables: string[] }): Generator<ProgressNotification, string> {
  *   const step = createProgress(args.tables.length);
  *   for (const table of args.tables) {
  *     yield step();
@@ -322,7 +322,7 @@ export type ToolHandler = {
  */
 export type GeneratorToolHandler = {
   (
-    ctx: McpContext,
+    mctx: McpContext,
     args: Record<string, any>,
     ask?: AskFunction | null,
   ): Generator<any, any, any> | AsyncGenerator<any, any, any>;
@@ -337,13 +337,13 @@ export type GeneratorToolHandler = {
  * Resource handler function.
  * Returns resource content (string, binary data, or object).
  *
- * @param ctx - McpContext with userId, emit, and cancel
+ * @param mctx - McpContext with userId, emit, and cancel
  * @param params - Extracted URI template parameters (e.g., { id: '123' })
  * @param ask - Optional LLM sampling function
  * @returns Resource content
  */
 export type ResourceHandler = {
-  (ctx: McpContext, params: Record<string, string>, ask?: AskFunction | null): any | Promise<any>;
+  (mctx: McpContext, params: Record<string, string>, ask?: AskFunction | null): any | Promise<any>;
   /** Resource name for display */
   name?: string;
   /** Resource description */
@@ -356,14 +356,14 @@ export type ResourceHandler = {
  * Prompt handler function.
  * Returns messages for LLM conversation or a conversation result.
  *
- * @param ctx - McpContext with userId, emit, and cancel
+ * @param mctx - McpContext with userId, emit, and cancel
  * @param args - Prompt arguments
  * @param ask - Optional LLM sampling function
  * @returns Prompt messages (string, conversation result, or message array)
  */
 export type PromptHandler = {
   (
-    ctx: McpContext,
+    mctx: McpContext,
     args: Record<string, any>,
     ask?: AskFunction | null,
   ): string | ConversationResult | Message[] | Promise<string | ConversationResult | Message[]>;

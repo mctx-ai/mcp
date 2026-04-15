@@ -57,7 +57,7 @@ const app = createServer({
 });
 
 // A simple greeting tool
-function greet(ctx, { name }) {
+function greet(mctx, { name }) {
   return \`Hello, \${name}! Welcome to mctx.\`;
 }
 greet.description = 'Greet someone by name';
@@ -114,14 +114,14 @@ Create a separate file for your handler (e.g. \`tools/my-tool.js\`):
 // tools/my-tool.js
 import { T } from '@mctx-ai/app';
 
-// Handlers receive (ctx, { field1, field2 }, ask):
-//   ctx                — request context
-//                          ctx.userId — stable, opaque user identifier (undefined if unauthenticated)
-//                          ctx.emit   — emit a channel event (returns eventId)
-//                          ctx.cancel — cancel a previously emitted scheduled event
+// Handlers receive (mctx, { field1, field2 }, ask):
+//   mctx               — request context
+//                          mctx.userId — stable, opaque user identifier (undefined if unauthenticated)
+//                          mctx.emit   — emit a channel event (returns eventId)
+//                          mctx.cancel — cancel a previously emitted scheduled event
 //   { field1, field2 } — destructured validated input fields
 //   ask                — LLM sampling function (null if client doesn't support it)
-export function myTool(ctx, { input }) {
+export function myTool(mctx, { input }) {
   return \`Result: \${input}\`;
 }
 myTool.description = 'What this tool does';

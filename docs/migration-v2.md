@@ -3,13 +3,13 @@ title: Migrating from v1 to v2
 description: Upgrade guide for @mctx-ai/app v1 to v2. One breaking change, several improvements.
 ---
 
-v2 has one breaking change: the handler signature reordered `ctx` to the first position, Go-style. Everything else is backward-compatible.
+v2 has one breaking change: the handler signature reordered context to the first position, Go-style. Everything else is backward-compatible.
 
 ## Quick upgrade checklist
 
 - [ ] Update `@mctx-ai/app` to `^2.0.0` and `@mctx-ai/dev` to `^2.0.0`
-- [ ] Move `ctx` from the third parameter to the first in every handler
-- [ ] Update destructuring patterns — `ctx` is now `(ctx, { name, ...rest })`, not `({ name, ...rest }, ask, ctx)`
+- [ ] Move the context parameter from the third position to the first in every handler, and rename it `mctx`
+- [ ] Update destructuring patterns — `mctx` is now `(mctx, { name, ...rest })`, not `({ name, ...rest }, ask, ctx)`
 - [ ] Verify any handlers that used `ask` — it moved from second to third position
 - [ ] If you import `startDevServer` programmatically, update to `import { startDevServer } from '@mctx-ai/dev'`
 
@@ -19,7 +19,7 @@ v2 has one breaking change: the handler signature reordered `ctx` to the first p
 
 ### What changed
 
-All handler types — tools, resources, and prompts — now receive `ctx` as the **first** parameter, not the third. This aligns with Go-style context-first conventions and makes it natural to add context-aware behavior without touching parameter positions for `args` or `ask`.
+All handler types — tools, resources, and prompts — now receive `mctx` as the **first** parameter, not the third. This aligns with Go-style context-first conventions and makes it natural to add context-aware behavior without touching parameter positions for `args` or `ask`.
 
 **v1 signature (old):**
 
@@ -30,10 +30,10 @@ handler(args, ask, ctx)
 **v2 signature (new):**
 
 ```
-handler(ctx, args, ask)
+handler(mctx, args, ask)
 ```
 
-The `ctx` object shape is unchanged: `{ userId, emit, cancel }`.
+The `mctx` object shape is unchanged: `{ userId, emit, cancel }`.
 
 ---
 
@@ -57,8 +57,8 @@ app.tool("deploy", deploy);
 **v2 — after:**
 
 ```js
-const deploy = async (ctx, { environment, version }, ask) => {
-  const eventId = ctx.emit(`Deploying ${version} to ${environment}`);
+const deploy = async (mctx, { environment, version }, ask) => {
+  const eventId = mctx.emit(`Deploying ${version} to ${environment}`);
   return { deployed: true, eventId };
 };
 deploy.description = "Deploy a version to an environment";
@@ -69,11 +69,11 @@ deploy.input = {
 app.tool("deploy", deploy);
 ```
 
-Tools that do not use `ask` or `ctx` can omit trailing parameters:
+Tools that do not use `ask` or `mctx` can omit trailing parameters:
 
 ```js
 // Fine in both v1 and v2 — just be explicit about which positional params you want
-const greet = (ctx, { name }) => `Hello, ${name}!`;
+const greet = (mctx, { name }) => `Hello, ${name}!`;
 ```
 
 ---
@@ -99,11 +99,11 @@ app.tool("migrate", migrate);
 **v2 — after:**
 
 ```js
-function* migrate(ctx, { tables }, ask) {
+function* migrate(mctx, { tables }, ask) {
   const step = createProgress(tables.length);
   for (const table of tables) {
     yield step();
-    ctx.emit(`Migrating table: ${table}`);
+    mctx.emit(`Migrating table: ${table}`);
     await copyTable(table);
   }
   return "Migration complete";
@@ -116,13 +116,13 @@ Async generators follow the same pattern:
 
 ```js
 // v2 async generator
-async function* processQueue(ctx, { queueUrl }, ask) {
+async function* processQueue(mctx, { queueUrl }, ask) {
   const step = createProgress();
   while (true) {
     const msg = await poll(queueUrl);
     if (!msg) break;
     yield step();
-    ctx.emit(`Processed: ${msg.id}`);
+    mctx.emit(`Processed: ${msg.id}`);
   }
   return "Queue drained";
 }
@@ -132,7 +132,7 @@ async function* processQueue(ctx, { queueUrl }, ask) {
 
 ### Resource handlers (static)
 
-Static resources receive no URL parameters, so the practical change is that `ctx` moves to the front if you use it.
+Static resources receive no URL parameters, so the practical change is that `mctx` moves to the front if you use it.
 
 **v1 — before:**
 
@@ -146,13 +146,13 @@ app.resource("db://schema", schema);
 **v2 — after:**
 
 ```js
-const schema = (ctx) => {
-  return JSON.stringify({ requestedBy: ctx.userId });
+const schema = (mctx) => {
+  return JSON.stringify({ requestedBy: mctx.userId });
 };
 app.resource("db://schema", schema);
 ```
 
-If you do not use `ctx`, nothing changes in practice:
+If you do not use `mctx`, nothing changes in practice:
 
 ```js
 // Works identically in v1 and v2
@@ -182,9 +182,9 @@ app.resource("db://customers/{customerId}", getCustomer);
 **v2 — after:**
 
 ```js
-const getCustomer = async (ctx, { customerId }, ask) => {
+const getCustomer = async (mctx, { customerId }, ask) => {
   const customer = await db.customers.find(customerId);
-  ctx.emit(`Fetched customer ${customerId}`, { meta: { user_id: ctx.userId } });
+  mctx.emit(`Fetched customer ${customerId}`, { meta: { user_id: mctx.userId } });
   return JSON.stringify(customer);
 };
 getCustomer.mimeType = "application/json";
@@ -214,9 +214,9 @@ app.prompt("code-review", codeReview);
 **v2 — after:**
 
 ```js
-const codeReview = (ctx, { code, language }, ask) => {
+const codeReview = (mctx, { code, language }, ask) => {
   return conversation(({ user }) => [
-    user.say(`Review this ${language} code for user ${ctx.userId}:`),
+    user.say(`Review this ${language} code for user ${mctx.userId}:`),
     user.say(code),
   ]);
 };
@@ -245,7 +245,7 @@ const smart = async ({ question }, ask) => {
 **v2 — after:**
 
 ```js
-const smart = async (ctx, { question }, ask) => {
+const smart = async (mctx, { question }, ask) => {
   if (!ask) return `Answer: ${question}`;
   return ask(`Answer: ${question}`);
 };
@@ -273,7 +273,7 @@ Error responses for unknown JSON-RPC methods now include the method name that wa
 
 ### `createEmit` and `createCancel` marked `@internal`
 
-These two exports are framework internals. Use `ctx.emit` and `ctx.cancel` in your handler code. If you imported `createEmit` or `createCancel` directly in application code, switch to the `ctx` equivalents.
+These two exports are framework internals. Use `mctx.emit` and `mctx.cancel` in your handler code. If you imported `createEmit` or `createCancel` directly in application code, switch to the `mctx` equivalents.
 
 ### Dev server: `startDevServer` is now importable
 
@@ -298,7 +298,7 @@ The CLI (`npx mctx-dev index.js`) continues to work unchanged.
 - Exact dependency version pins (no `^` or `~` ranges)
 - `.npmrc` with `save-exact=true`
 - `engines` field in `package.json` enforcing Node >=22
-- `ctx` documented in the generated scaffold
+- `mctx` documented in the generated scaffold
 
 If you created a project with v1 of the scaffolding, you may want to add these manually. None are required for a working server.
 

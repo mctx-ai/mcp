@@ -120,24 +120,24 @@ greet.input = { name: T.string({ required: true }) };
 app.tool("greet", greet);
 ```
 
-Handler functions receive up to three parameters: `(args, ask, ctx)` for tools and prompts, `(params, ask, ctx)` for resource templates. All parameters are optional. `ctx` is an `McpContext` object `{ userId?: string }` populated automatically by the platform.
+Handler functions receive up to three parameters: `(mctx, args, ask)` for tools and prompts, `(mctx, params, ask)` for resource templates. All parameters are optional. `mctx` is an `McpContext` object `{ userId?: string }` populated automatically by the platform.
 
 ### Handler Types
 
-1. **Tools** — Sync, async, or generator functions. Generators yield progress notifications. `ask` (second param) enables LLM sampling. `ctx` (third param) carries per-request context including `ctx.userId`.
-2. **Resources** — Static URIs or URI templates with `{param}` placeholders. Params extracted via RFC 6570 Level 1. Template handlers receive `(params, ask, ctx)`.
-3. **Prompts** — Return string, `conversation()` result, or Message array. Receive `(args, ask, ctx)`.
+1. **Tools** — Sync, async, or generator functions. Generators yield progress notifications. `ask` (third param) enables LLM sampling. `mctx` (first param) carries per-request context including `mctx.userId`.
+2. **Resources** — Static URIs or URI templates with `{param}` placeholders. Params extracted via RFC 6570 Level 1. Template handlers receive `(mctx, params, ask)`.
+3. **Prompts** — Return string, `conversation()` result, or Message array. Receive `(mctx, args, ask)`.
 
-`McpContext` shape: `{ userId?: string, emit: EmitFunction, cancel: CancelFunction }`. `ctx.userId` is a stable, opaque identifier for the authenticated user extracted from the `X-Mctx-User-Id` HTTP header injected by the mctx dispatch worker. It is `undefined` for unauthenticated requests.
+`McpContext` shape: `{ userId?: string, emit: EmitFunction, cancel: CancelFunction }`. `mctx.userId` is a stable, opaque identifier for the authenticated user extracted from the `X-Mctx-User-Id` HTTP header injected by the mctx dispatch worker. It is `undefined` for unauthenticated requests.
 
 ### Channel Events
 
-`ctx.emit(content, options?)` and `ctx.cancel(eventId)` are available in all handler types (tools, resources, prompts) via the `ctx` parameter. Events are written as `X-Mctx-Event` response headers; the dispatch worker reads these headers and writes events to D1. No HTTP calls, env vars, or async coordination required.
+`mctx.emit(content, options?)` and `mctx.cancel(eventId)` are available in all handler types (tools, resources, prompts) via the `mctx` parameter. Events are written as `X-Mctx-Event` response headers; the dispatch worker reads these headers and writes events to D1. No HTTP calls, env vars, or async coordination required.
 
 **Emit signature:**
 
 ```javascript
-ctx.emit(content, options?)
+mctx.emit(content, options?)
 ```
 
 **Parameters:**
@@ -154,10 +154,10 @@ ctx.emit(content, options?)
 **Cancel signature:**
 
 ```javascript
-ctx.cancel(eventId);
+mctx.cancel(eventId);
 ```
 
-- `eventId` (string) — the eventId returned by a previous `ctx.emit()` call
+- `eventId` (string) — the eventId returned by a previous `mctx.emit()` call
 - Appends an `X-Mctx-Cancel` response header; the dispatch worker cancels the matching pending event in D1
 - No-ops silently on invalid input
 
@@ -169,25 +169,25 @@ ctx.cancel(eventId);
 - `expiresAt` set automatically to 7 days from emit time; cannot be overridden
 - Synchronous and non-blocking — no async, no awaiting, no side effects on the tool response
 
-**Important:** Developers MUST sanitize user-generated content before passing to `ctx.emit()`. The emit function does not perform content sanitization beyond length truncation.
+**Important:** Developers MUST sanitize user-generated content before passing to `mctx.emit()`. The emit function does not perform content sanitization beyond length truncation.
 
 **Example:**
 
 ```javascript
-function myTool({ userId, scheduleFor }, _ask, ctx) {
+function myTool(mctx, { userId, scheduleFor }, _ask) {
   // ... do work ...
 
   // Sanitize user input before emitting
   const sanitizedMessage = sanitize(userInput);
 
   // Emit immediately and capture the eventId for possible cancellation
-  const eventId = ctx.emit(`User ${userId} completed task`, {
+  const eventId = mctx.emit(`User ${userId} completed task`, {
     eventType: "task_complete",
     meta: { user_id: userId, status: "success" },
   });
 
   // Emit a scheduled follow-up notification
-  const reminderEventId = ctx.emit("Reminder: review your results", {
+  const reminderEventId = mctx.emit("Reminder: review your results", {
     eventType: "reminder",
     deliverAt: scheduleFor,
     key: `reminder_${userId}`,
@@ -195,7 +195,7 @@ function myTool({ userId, scheduleFor }, _ask, ctx) {
 
   // Cancel a previously scheduled event if needed
   if (shouldCancel) {
-    ctx.cancel(reminderEventId);
+    mctx.cancel(reminderEventId);
   }
 
   return { success: true, eventId };

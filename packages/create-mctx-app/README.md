@@ -2,7 +2,7 @@
   <img src="https://mctx.ai/brand/logo-black.png" width="120" alt="mctx" />
 </p>
 
-<p align="center">Scaffold an MCP server in one command.</p>
+<p align="center">mctx — The best way to Build an MCP server</p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/create-mctx-server"><img src="https://img.shields.io/npm/v/create-mctx-server" alt="npm version" /></a>

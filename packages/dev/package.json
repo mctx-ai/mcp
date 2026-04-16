@@ -1,7 +1,7 @@
 {
   "name": "@mctx-ai/dev",
   "version": "2.0.0",
-  "description": "Local development server for @mctx-ai/mcp with hot reload",
+  "description": "Dev server with hot reload for mctx MCP servers",
   "type": "module",
   "main": "./src/cli.js",
   "bin": {

@@ -1,7 +1,7 @@
 {
   "name": "create-mctx-server",
   "version": "2.0.0",
-  "description": "Create a new mctx App project",
+  "description": "Scaffold an mctx MCP server in one command",
   "type": "module",
   "bin": {
     "create-mctx-server": "index.js"

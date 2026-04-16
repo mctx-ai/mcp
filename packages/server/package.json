@@ -1,7 +1,7 @@
 {
   "name": "@mctx-ai/mcp",
   "version": "2.0.0",
-  "description": "Build Apps for AI with an Express-like API — no protocol knowledge required",
+  "description": "mctx — The best way to Build an MCP server",
   "type": "module",
   "main": "./src/index.js",
   "types": "./src/index.d.ts",

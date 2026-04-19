@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "Running pre-push checks..."
+
+echo "Checking formatting..."
+npm run format:check
+
+echo "Running linter..."
+npm run lint
+
+echo "Running tests..."
+npm test
+
+echo "All pre-push checks passed."

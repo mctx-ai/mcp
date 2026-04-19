@@ -333,8 +333,8 @@ describe("generateCompletions() - 100-item cap", () => {
     );
 
     // Matches: item1, item10, item11, ..., item19, item100, item101, ..., item149
-    // Total: 1 + 10 + 50 = 61 matches
-    expect(result.completion.values.length).toBeLessThanOrEqual(100);
+    // Total: 1 + 10 + 50 = 61 matches (all under the 100-item cap)
+    expect(result.completion.values.length).toBe(61);
   });
 });
 

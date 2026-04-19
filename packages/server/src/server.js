@@ -5,9 +5,9 @@
  * app with tool/resource/prompt registration and JSON-RPC 2.0 routing.
  */
 
+import { createRequire } from "module";
 import { buildInputSchema } from "./types.js";
 import { matchUri, isTemplate } from "./uri.js";
-import { PROGRESS_DEFAULTS } from "./progress.js";
 import { generateCompletions } from "./completion.js";
 import { setLogLevel } from "./log.js";
 import {
@@ -19,7 +19,9 @@ import {
   sanitizeInput,
 } from "./security.js";
 import { createAsk } from "./sampling.js";
-import { createEmit, createCancel } from "./channel.js";
+
+const require = createRequire(import.meta.url);
+const { version } = require("../package.json");
 
 /**
  * HTTP Security Headers
@@ -152,9 +154,9 @@ export function createServer(options = {}) {
   /**
    * Register a tool
    * @param {string} name - Tool name
-   * @param {Function} handler - Tool handler function. Called as handler(params, ask, ctx) where
-   *   params is the validated input, ask is the sampling function (or undefined),
-   *   and ctx is the request context with optional userId.
+   * @param {Function} handler - Tool handler function. Called as handler(mctx, req, res) where
+   *   mctx is the request context with optional userId, req is the validated input args,
+   *   and res is the response output port { send, progress, ask }.
    * @returns {Object} App instance (for chaining)
    */
   function tool(name, handler) {
@@ -169,9 +171,9 @@ export function createServer(options = {}) {
   /**
    * Register a resource
    * @param {string} uri - Resource URI (may contain {param} templates)
-   * @param {Function} handler - Resource handler function. Called as handler(params, ask, ctx) where
-   *   params contains URI template variables, ask is the sampling function (or undefined),
-   *   and ctx is the request context with optional userId.
+   * @param {Function} handler - Resource handler function. Called as handler(mctx, req, res) where
+   *   mctx is the request context with optional userId, req contains URI template variables,
+   *   and res is the response output port { send, progress, ask }.
    * @returns {Object} App instance (for chaining)
    */
   function resource(uri, handler) {
@@ -186,9 +188,9 @@ export function createServer(options = {}) {
   /**
    * Register a prompt
    * @param {string} name - Prompt name
-   * @param {Function} handler - Prompt handler function. Called as handler(params, ask, ctx) where
-   *   params is the validated input, ask is the sampling function (or undefined),
-   *   and ctx is the request context with optional userId.
+   * @param {Function} handler - Prompt handler function. Called as handler(mctx, req, res) where
+   *   mctx is the request context with optional userId, req is the validated input args,
+   *   and res is the response output port { send, progress, ask }.
    * @returns {Object} App instance (for chaining)
    */
   function prompt(name, handler) {
@@ -231,12 +233,12 @@ export function createServer(options = {}) {
   /**
    * Handle tools/call request
    * @param {Object} params - Request params
-   * @param {Object} [meta] - Request metadata (_meta field)
+   * @param {Object} [_meta] - Request metadata (_meta field, unused)
    * @param {string|null} [sessionId] - MCP session ID from request header
-   * @param {Object} [ctx] - Request context (e.g. { userId })
+   * @param {Object} [mctx] - Request context (e.g. { userId })
    * @returns {Promise<Object>} Tool result
    */
-  async function handleToolsCall(params, meta = {}, sessionId = null, ctx = {}) {
+  async function handleToolsCall(params, _meta = {}, sessionId = null, mctx = {}) {
     const { name, arguments: args } = params;
 
     if (!name) {
@@ -248,36 +250,30 @@ export function createServer(options = {}) {
       throw new Error(`Tool "${name}" not found`);
     }
 
-    // Validate arguments exist
-    if (args === undefined || args === null) {
-      throw new Error("Tool arguments are required");
-    }
-
-    // Sanitize arguments to prevent prototype pollution
-    const sanitizedArgs = sanitizeInput(args);
+    // Sanitize arguments to prevent prototype pollution; fall back to empty object
+    // when args is null/undefined
+    const req = sanitizeInput(args || {});
 
     try {
-      // Create ask function for sampling support when client advertises capability
-      const ask = createAsk(buildSendRequest(sessionId), clientCapabilities);
+      let capturedResult;
 
-      // Check if handler is a generator function (robust against minification)
-      function isGeneratorFunction(fn) {
-        if (!fn || !fn.constructor) return false;
-        const name = fn.constructor.name;
-        if (name === "GeneratorFunction" || name === "AsyncGeneratorFunction") return true;
-        const proto = Object.getPrototypeOf(fn);
-        return proto && proto[Symbol.toStringTag] === "GeneratorFunction";
-      }
+      // Construct the response output port
+      const res = {
+        send(result) {
+          capturedResult = result;
+        },
+        progress(current, total) {
+          // Send MCP progress notification via sendProgressNotification
+          sendProgressNotification(sessionId, current, total);
+        },
+        ask: createAsk(buildSendRequest(sessionId), clientCapabilities),
+      };
 
-      const isGenerator = isGeneratorFunction(handler);
+      // Call handler with new signature: handler(mctx, req, res)
+      await handler(mctx, req, res);
 
-      if (isGenerator) {
-        // Execute generator with progress tracking
-        return await executeGeneratorHandler(handler, sanitizedArgs, ask, meta, ctx);
-      }
-
-      // Execute regular handler (support both sync and async)
-      const result = await handler(sanitizedArgs, ask, ctx);
+      // Use result captured via res.send()
+      const result = capturedResult;
 
       // Wrap result based on type
       if (typeof result === "string") {
@@ -302,82 +298,23 @@ export function createServer(options = {}) {
   }
 
   /**
-   * Execute generator-based handler with progress tracking
+   * Send an MCP progress notification to the client.
+   * This is a fire-and-forget best-effort notification.
    * @private
-   * @param {GeneratorFunction} handler - Generator handler
-   * @param {Object} args - Tool arguments
-   * @param {Function|null} ask - Ask function (or null if not supported)
-   * @param {Object} meta - Request metadata
-   * @param {Object} [ctx] - Request context (e.g. { userId })
-   * @returns {Promise<Object>} Tool result
+   * @param {string|null} sessionId - MCP session ID
+   * @param {number} current - Current progress value
+   * @param {number} [total] - Total progress value (optional)
    */
-  async function executeGeneratorHandler(handler, args, ask, meta, ctx = {}) {
-    const progressToken = meta.progressToken;
-    const startTime = Date.now();
-    let yieldCount = 0;
-
-    // NOTE: In HTTP mode, progress notifications are collected but can't be sent
-    // until the request completes. In a streaming transport (WebSocket/SSE),
-    // these would be sent immediately as notifications.
-    const progressNotifications = [];
-
+  function sendProgressNotification(sessionId, current, total) {
+    // Progress notifications are best-effort; errors are silently swallowed
     try {
-      // Execute generator using iterator protocol to capture return value
-      const iterator = handler(args, ask, ctx);
-      let iterResult = await iterator.next();
-
-      while (!iterResult.done) {
-        yieldCount++;
-
-        // Enforce max yields guardrail
-        if (yieldCount > PROGRESS_DEFAULTS.maxYields) {
-          throw new Error(`Generator exceeded maximum yields (${PROGRESS_DEFAULTS.maxYields})`);
-        }
-
-        // Enforce max execution time guardrail
-        const elapsed = Date.now() - startTime;
-        if (elapsed > PROGRESS_DEFAULTS.maxExecutionTime) {
-          throw new Error(
-            `Generator exceeded maximum execution time (${PROGRESS_DEFAULTS.maxExecutionTime}ms)`,
-          );
-        }
-
-        // Check if yielded value is a progress notification
-        const value = iterResult.value;
-        if (value && typeof value === "object" && value.type === "progress") {
-          // Store progress notification
-          // In streaming mode, would send via progressToken
-          if (progressToken) {
-            progressNotifications.push({
-              progressToken,
-              ...value,
-            });
-          }
-        }
-
-        // Get next value
-        iterResult = await iterator.next();
-      }
-
-      // Return final result from generator's return value (not last yielded value)
-      const finalResult = iterResult.value;
-
-      if (typeof finalResult === "string") {
-        return {
-          content: [{ type: "text", text: finalResult }],
-        };
-      }
-
-      const serialized = safeSerialize(finalResult);
-      return {
-        content: [{ type: "text", text: serialized }],
-      };
-    } catch (error) {
-      const sanitized = sanitizeError(error);
-      return {
-        content: [{ type: "text", text: sanitized }],
-        isError: true,
-      };
+      const sendRequest = buildSendRequest(sessionId);
+      const params = { progress: current };
+      if (total !== undefined) params.total = total;
+      // Fire-and-forget — do not await
+      sendRequest("notifications/progress", params).catch(() => {});
+    } catch {
+      // Silently ignore — progress is advisory
     }
   }
 
@@ -433,10 +370,10 @@ export function createServer(options = {}) {
    * Handle resources/read request
    * @param {Object} params - Request params
    * @param {string|null} [sessionId] - MCP session ID from request header
-   * @param {Object} [ctx] - Request context (e.g. { userId })
+   * @param {Object} [mctx] - Request context (e.g. { userId })
    * @returns {Promise<Object>} Resource content
    */
-  async function handleResourcesRead(params, sessionId = null, ctx = {}) {
+  async function handleResourcesRead(params, sessionId = null, mctx = {}) {
     const { uri } = params;
 
     if (!uri) {
@@ -484,14 +421,26 @@ export function createServer(options = {}) {
     }
 
     try {
-      // Create ask function for sampling support when client advertises capability
-      const ask = createAsk(buildSendRequest(sessionId), clientCapabilities);
-
       // Sanitize extracted params to prevent prototype pollution
-      const sanitizedParams = sanitizeInput(extractedParams);
+      const req = sanitizeInput(extractedParams);
 
-      // Execute handler with sanitized params, ask, and context
-      const result = await handler(sanitizedParams, ask, ctx);
+      let capturedResult;
+
+      // Construct the response output port
+      const res = {
+        send(result) {
+          capturedResult = result;
+        },
+        progress(current, total) {
+          sendProgressNotification(sessionId, current, total);
+        },
+        ask: createAsk(buildSendRequest(sessionId), clientCapabilities),
+      };
+
+      // Execute handler with new signature: handler(mctx, req, res)
+      await handler(mctx, req, res);
+
+      const result = capturedResult;
 
       // Wrap result as resource content
       const mimeType = handler.mimeType || "text/plain";
@@ -573,10 +522,10 @@ export function createServer(options = {}) {
    * Handle prompts/get request
    * @param {Object} params - Request params
    * @param {string|null} [sessionId] - MCP session ID from request header
-   * @param {Object} [ctx] - Request context (e.g. { userId })
+   * @param {Object} [mctx] - Request context (e.g. { userId })
    * @returns {Promise<Object>} Prompt messages
    */
-  async function handlePromptsGet(params, sessionId = null, ctx = {}) {
+  async function handlePromptsGet(params, sessionId = null, mctx = {}) {
     const { name, arguments: args } = params;
 
     if (!name) {
@@ -589,14 +538,26 @@ export function createServer(options = {}) {
     }
 
     try {
-      // Create ask function for sampling support when client advertises capability
-      const ask = createAsk(buildSendRequest(sessionId), clientCapabilities);
-
       // Sanitize arguments to prevent prototype pollution
-      const sanitizedArgs = sanitizeInput(args || {});
+      const req = sanitizeInput(args || {});
 
-      // Execute handler with sanitized args and context
-      const result = await handler(sanitizedArgs, ask, ctx);
+      let capturedResult;
+
+      // Construct the response output port
+      const res = {
+        send(result) {
+          capturedResult = result;
+        },
+        progress(current, total) {
+          sendProgressNotification(sessionId, current, total);
+        },
+        ask: createAsk(buildSendRequest(sessionId), clientCapabilities),
+      };
+
+      // Execute handler with new signature: handler(mctx, req, res)
+      await handler(mctx, req, res);
+
+      const result = capturedResult;
 
       // If handler returns a string, wrap as user message
       if (typeof result === "string") {
@@ -731,20 +692,16 @@ export function createServer(options = {}) {
     capabilities.logging = {};
 
     // Advertise sampling capability — the server supports LLM-in-the-loop
-    // via the ask() function if the client also supports sampling
+    // via res.ask() if the client also supports sampling
     capabilities.sampling = {};
-
-    // Always advertise channels capability — channel events are written as response
-    // headers (X-Mctx-Event) and require no env var configuration.
-    capabilities.channels = {};
 
     // Build response
     const response = {
       protocolVersion: "2025-11-25",
       capabilities,
       serverInfo: {
-        name: "@mctx-ai/app",
-        version: "0.3.0",
+        name: "@mctx-ai/mcp",
+        version,
       },
     };
 
@@ -796,12 +753,12 @@ export function createServer(options = {}) {
    * Route JSON-RPC request to appropriate handler
    * @param {Object} request - JSON-RPC request
    * @param {string|null} sessionId - MCP session ID from request header
-   * @param {Object} ctx - Request context (userId, emit) built in fetch()
+   * @param {Object} mctx - Request context (userId) built in fetch()
    * @param {Object} [env] - Environment bindings (Cloudflare Workers env)
    * @returns {Promise<Object>} Response result
    */
-  async function route(request, sessionId, ctx, env) {
-    const { method, params, _meta } = request;
+  async function route(request, sessionId, mctx, env) {
+    const { method, params } = request;
 
     switch (method) {
       case "initialize":
@@ -819,13 +776,13 @@ export function createServer(options = {}) {
         return handleToolsList(params);
 
       case "tools/call":
-        return await handleToolsCall(params, _meta, sessionId, ctx);
+        return await handleToolsCall(params, {}, sessionId, mctx);
 
       case "resources/list":
         return handleResourcesList(params);
 
       case "resources/read":
-        return await handleResourcesRead(params, sessionId, ctx);
+        return await handleResourcesRead(params, sessionId, mctx);
 
       case "resources/templates/list":
         return handleResourceTemplatesList(params);
@@ -834,7 +791,7 @@ export function createServer(options = {}) {
         return handlePromptsList(params);
 
       case "prompts/get":
-        return await handlePromptsGet(params, sessionId, ctx);
+        return await handlePromptsGet(params, sessionId, mctx);
 
       case "notifications/cancelled":
         // Silent acknowledgment - no response for notifications
@@ -847,8 +804,7 @@ export function createServer(options = {}) {
         return handleLoggingSetLevel(params);
 
       default: {
-        const error = new Error("Method not found");
-        error.code = -32601;
+        const error = { code: -32601, message: `Method not found: ${method}` };
         throw error;
       }
     }
@@ -886,18 +842,8 @@ export function createServer(options = {}) {
     // Extract user ID from request header injected by mctx dispatch worker
     const userId = request.headers.get("x-mctx-user-id") || undefined;
 
-    // Build mutable response headers so channel emit/cancel can append X-Mctx-Event
-    // and X-Mctx-Cancel headers that the dispatch worker reads after the response.
-    const responseHeaders = new Headers(SECURITY_HEADERS);
-
-    // Create channel emit function bound to this request's response headers
-    const emit = createEmit(responseHeaders);
-
-    // Create channel cancel function bound to this request's response headers
-    const cancel = createCancel(responseHeaders);
-
-    // Build context object passed as third arg to all handlers
-    const ctx = { userId, emit, cancel };
+    // Build context object passed as first arg to all handlers
+    const mctx = { userId };
 
     let rpcRequest;
     let rawBody;
@@ -949,7 +895,7 @@ export function createServer(options = {}) {
 
     try {
       // Route request
-      const result = await route(rpcRequest, sessionId, ctx, env);
+      const result = await route(rpcRequest, sessionId, mctx, env);
 
       // NOTE: Log buffer is intentionally NOT cleared here.
       // Consumers (e.g. dev server) are responsible for reading and clearing the
@@ -959,7 +905,7 @@ export function createServer(options = {}) {
 
       // For notifications (no id), return 204 No Content
       if (!("id" in rpcRequest)) {
-        return new Response(null, { status: 204, headers: responseHeaders });
+        return new Response(null, { status: 204, headers: new Headers(SECURITY_HEADERS) });
       }
 
       // Build response object
@@ -972,10 +918,10 @@ export function createServer(options = {}) {
       // Validate response size before sending (prevent DoS)
       validateResponseSize(responseBody);
 
-      // Return JSON-RPC success response (responseHeaders includes any X-Mctx-Event headers)
+      // Return JSON-RPC success response
       return new Response(JSON.stringify(responseBody), {
         status: 200,
-        headers: responseHeaders,
+        headers: new Headers(SECURITY_HEADERS),
       });
     } catch (error) {
       // Check if error is JSON-RPC error (has code and message)
@@ -996,7 +942,7 @@ export function createServer(options = {}) {
         }),
         {
           status: 200, // JSON-RPC errors use 200 status with error object
-          headers: responseHeaders,
+          headers: new Headers(SECURITY_HEADERS),
         },
       );
     }

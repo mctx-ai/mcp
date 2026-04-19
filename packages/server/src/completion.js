@@ -7,6 +7,8 @@
  * @module completion
  */
 
+import { log } from "./log.js";
+
 /**
  * Maximum number of completion results to return
  */
@@ -156,7 +158,7 @@ function executeCustomCompletion(completeFn, argumentName, partialValue) {
 
     return createEmptyCompletion();
   } catch (error) {
-    console.error("Completion handler error:", error);
+    log.error("Completion handler error:" + (error ? " " + String(error) : ""));
     return createEmptyCompletion();
   }
 }

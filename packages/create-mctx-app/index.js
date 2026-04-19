@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-import { mkdirSync, writeFileSync, existsSync, readFileSync } from "fs";
+import { mkdirSync, writeFileSync, existsSync, readFileSync, cpSync } from "fs";
 import { join } from "path";
+import { fileURLToPath } from "url";
 
 // Read version from own package.json
 const selfPkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
@@ -9,7 +10,7 @@ const version = selfPkg.version;
 const projectName = process.argv[2];
 
 if (!projectName) {
-  console.error("Usage: npm create mctx-app <project-name>");
+  console.error("Usage: npm create mctx-server <project-name>");
   process.exit(1);
 }
 
@@ -25,7 +26,7 @@ mkdirSync(projectName, { recursive: true });
 const packageJson = {
   name: projectName,
   version: "0.0.1",
-  description: "An App built with @mctx-ai/app",
+  description: "Built with mctx — The best way to Build an MCP Server",
   type: "module",
   main: "dist/index.js",
   scripts: {
@@ -34,39 +35,40 @@ const packageJson = {
       "esbuild index.js --bundle --minify --platform=node --format=esm --outfile=dist/index.js",
   },
   dependencies: {
-    "@mctx-ai/app": `^${version}`,
+    "@mctx-ai/mcp": `${version}`,
   },
   devDependencies: {
-    "@mctx-ai/dev": `^${version}`,
-    esbuild: "^0.27.0",
+    "@mctx-ai/dev": `${version}`,
+    esbuild: "0.27.0",
   },
   engines: {
     node: ">=22.0.0",
+    npm: ">=10.8.0",
   },
 };
 
 writeFileSync(join(projectName, "package.json"), JSON.stringify(packageJson, null, 2) + "\n");
 
 // Generate index.js
-const indexJs = `import { createServer, T } from '@mctx-ai/app';
+const indexJs = `import { createServer, T } from '@mctx-ai/mcp';
 
-const app = createServer({
+const server = createServer({
   instructions: 'This server provides a simple greeting tool. Use the greet tool to say hello to someone by name.',
 });
 
 // A simple greeting tool
-function greet({ name }) {
-  return \`Hello, \${name}! Welcome to mctx.\`;
+function greet(mctx, req, res) {
+  res.send(\`Hello, \${req.name}! (user: \${mctx.userId || "anonymous"})\`);
 }
 greet.description = 'Greet someone by name';
 greet.input = {
   name: T.string({ required: true, description: 'Name to greet' }),
 };
-app.tool('greet', greet);
+server.tool('greet', greet);
 
 // Learn more: https://docs.mctx.ai/framework/tools
 
-export default app;
+export default server;
 `;
 
 writeFileSync(join(projectName, "index.js"), indexJs);
@@ -78,10 +80,16 @@ dist/
 
 writeFileSync(join(projectName, ".gitignore"), gitignore);
 
+// Generate .npmrc
+const npmrc = `save-exact=true
+`;
+
+writeFileSync(join(projectName, ".npmrc"), npmrc);
+
 // Generate README.md
 const readme = `# ${projectName}
 
-An App built with [@mctx-ai/app](https://github.com/mctx-ai/app).
+An MCP server built with mctx — The best way to Build an MCP Server. See [@mctx-ai/mcp](https://github.com/mctx-ai/app) for the framework.
 
 ## Development
 
@@ -100,21 +108,35 @@ npx mctx-dev index.js --port 8080
 
 ## Add a Tool
 
-\`\`\`javascript
-import { T } from '@mctx-ai/app';
-import app from './index.js';
+Create a separate file for your handler (e.g. \`tools/my-tool.js\`):
 
-// Handlers receive ({ field1, field2 }, ask):
-//   { field1, field2 } — destructured validated input fields
-//   ask                — LLM sampling function (null if client doesn't support it)
-const myTool = ({ input }) => {
-  return \`Result: \${input}\`;
-};
+\`\`\`javascript
+// tools/my-tool.js
+import { T } from '@mctx-ai/mcp';
+
+// Handlers receive (mctx, req, res):
+//   mctx — model context
+//            mctx.userId — stable, opaque user identifier (undefined if unauthenticated)
+//   req  — validated input fields (req.field1, req.field2, etc.)
+//   res  — output port
+//            res.send(result)              — send the final result
+//            res.progress(current, total?) — report progress
+//            res.ask(prompt)               — LLM sampling (null if client doesn't support it)
+export function myTool(mctx, req, res) {
+  res.send(\`Result: \${req.input}\`);
+}
 myTool.description = 'What this tool does';
 myTool.input = {
   input: T.string({ required: true, description: 'Input description' }),
 };
-app.tool('my-tool', myTool);
+\`\`\`
+
+Then import and register it in \`index.js\`:
+
+\`\`\`javascript
+// index.js
+import { myTool } from './tools/my-tool.js';
+server.tool('my-tool', myTool);
 \`\`\`
 
 ## Build
@@ -139,6 +161,10 @@ This bundles your server into a single \`dist/index.js\` file ready for deployme
 `;
 
 writeFileSync(join(projectName, "README.md"), readme);
+
+// Copy template files (e.g. .github/ CI workflows)
+const templateDir = join(fileURLToPath(new URL(".", import.meta.url)), "template");
+cpSync(templateDir, projectName, { recursive: true });
 
 // Success message
 console.log(`✓ Created ${projectName}

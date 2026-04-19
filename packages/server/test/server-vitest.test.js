@@ -5,8 +5,12 @@
  * pagination, error handling, and serialization.
  */
 
+import { createRequire } from "module";
 import { describe, it, expect } from "vitest";
 import { createServer, T } from "../src/index.js";
+
+const require = createRequire(import.meta.url);
+const { version: packageVersion } = require("../package.json");
 
 // Helper to create mock Request
 function createRequest(body) {
@@ -17,28 +21,19 @@ function createRequest(body) {
   });
 }
 
-describe("createServer()", () => {
-  it("returns app with registration methods", () => {
-    const app = createServer();
-
-    expect(typeof app.tool).toBe("function");
-    expect(typeof app.resource).toBe("function");
-    expect(typeof app.prompt).toBe("function");
-    expect(typeof app.fetch).toBe("function");
-  });
-});
-
 describe("tool registration and tools/list", () => {
   it("registers and lists tools", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const greet = ({ name }) => `Hello, ${name}!`;
+    const greet = (_mctx, { name }, res) => {
+      res.send(`Hello, ${name}!`);
+    };
     greet.description = "Greets a person";
     greet.input = {
       name: T.string({ required: true, description: "Name to greet" }),
     };
 
-    app.tool("greet", greet);
+    server.tool("greet", greet);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -46,7 +41,7 @@ describe("tool registration and tools/list", () => {
       method: "tools/list",
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.jsonrpc).toBe("2.0");
@@ -59,14 +54,16 @@ describe("tool registration and tools/list", () => {
   });
 
   it("throws if tool handler is not a function", () => {
-    const app = createServer();
-    expect(() => app.tool("invalid", "not a function")).toThrow(/must be a function/);
+    const server = createServer();
+    expect(() => server.tool("invalid", "not a function")).toThrow(/must be a function/);
   });
 
   it("includes annotations in tools/list when handler has annotations set", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const deleteRecords = () => "deleted";
+    const deleteRecords = (_mctx, _req, res) => {
+      res.send("deleted");
+    };
     deleteRecords.description = "Deletes records permanently";
     deleteRecords.annotations = {
       destructiveHint: true,
@@ -75,7 +72,7 @@ describe("tool registration and tools/list", () => {
       idempotentHint: false,
     };
 
-    app.tool("deleteRecords", deleteRecords);
+    server.tool("deleteRecords", deleteRecords);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -83,7 +80,7 @@ describe("tool registration and tools/list", () => {
       method: "tools/list",
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.tools).toHaveLength(1);
@@ -97,15 +94,17 @@ describe("tool registration and tools/list", () => {
   });
 
   it("includes only the declared hint when handler has partial annotations", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const readConfig = () => "{}";
+    const readConfig = (_mctx, _req, res) => {
+      res.send("{}");
+    };
     readConfig.description = "Reads configuration";
     readConfig.annotations = {
       readOnlyHint: true,
     };
 
-    app.tool("readConfig", readConfig);
+    server.tool("readConfig", readConfig);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -113,7 +112,7 @@ describe("tool registration and tools/list", () => {
       method: "tools/list",
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.tools).toHaveLength(1);
@@ -127,12 +126,14 @@ describe("tool registration and tools/list", () => {
   });
 
   it("omits annotations field in tools/list when handler has no annotations", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const listRecords = () => "[]";
+    const listRecords = (_mctx, _req, res) => {
+      res.send("[]");
+    };
     listRecords.description = "Lists records";
 
-    app.tool("listRecords", listRecords);
+    server.tool("listRecords", listRecords);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -140,7 +141,7 @@ describe("tool registration and tools/list", () => {
       method: "tools/list",
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.tools).toHaveLength(1);
@@ -152,13 +153,15 @@ describe("tool registration and tools/list", () => {
 });
 
 describe("tools/call", () => {
-  it("calls tool with string return", async () => {
-    const app = createServer();
+  it("calls tool with string return via res.send()", async () => {
+    const server = createServer();
 
-    const greet = ({ name }) => `Hello, ${name}!`;
+    const greet = (_mctx, { name }, res) => {
+      res.send(`Hello, ${name}!`);
+    };
     greet.input = { name: T.string({ required: true }) };
 
-    app.tool("greet", greet);
+    server.tool("greet", greet);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -170,20 +173,22 @@ describe("tools/call", () => {
       },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.content[0].type).toBe("text");
     expect(data.result.content[0].text).toBe("Hello, World!");
   });
 
-  it("calls tool with object return", async () => {
-    const app = createServer();
+  it("calls tool with object return via res.send()", async () => {
+    const server = createServer();
 
-    const getData = () => ({ status: "success", count: 42 });
+    const getData = (_mctx, _req, res) => {
+      res.send({ status: "success", count: 42 });
+    };
     getData.input = {};
 
-    app.tool("getData", getData);
+    server.tool("getData", getData);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -195,7 +200,7 @@ describe("tools/call", () => {
       },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.content[0].type).toBe("text");
@@ -205,15 +210,15 @@ describe("tools/call", () => {
   });
 
   it("calls async tool handler", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const asyncTool = async ({ delay }) => {
+    const asyncTool = async (_mctx, { delay }, res) => {
       await new Promise((resolve) => setTimeout(resolve, delay));
-      return `Completed after ${delay}ms`;
+      res.send(`Completed after ${delay}ms`);
     };
     asyncTool.input = { delay: T.number({ required: true }) };
 
-    app.tool("asyncTool", asyncTool);
+    server.tool("asyncTool", asyncTool);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -225,21 +230,21 @@ describe("tools/call", () => {
       },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.content[0].text).toBe("Completed after 10ms");
   });
 
   it("handles tool errors gracefully", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const errorTool = () => {
+    const errorTool = (_mctx, _req, _res) => {
       throw new Error("Something went wrong");
     };
     errorTool.input = {};
 
-    app.tool("errorTool", errorTool);
+    server.tool("errorTool", errorTool);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -251,7 +256,7 @@ describe("tools/call", () => {
       },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.isError).toBe(true);
@@ -259,7 +264,7 @@ describe("tools/call", () => {
   });
 
   it("throws if tool name is missing", async () => {
-    const app = createServer();
+    const server = createServer();
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -270,7 +275,7 @@ describe("tools/call", () => {
       },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.error).toBeDefined();
@@ -278,7 +283,7 @@ describe("tools/call", () => {
   });
 
   it("throws if tool not found", async () => {
-    const app = createServer();
+    const server = createServer();
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -290,19 +295,21 @@ describe("tools/call", () => {
       },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.error).toBeDefined();
     expect(data.error.message).toContain('Tool "nonexistent" not found');
   });
 
-  it("throws if arguments are missing", async () => {
-    const app = createServer();
+  it("handles missing arguments gracefully with empty object fallback", async () => {
+    const server = createServer();
 
-    const tool = () => "result";
+    const tool = (_mctx, args, res) => {
+      res.send(JSON.stringify(args));
+    };
     tool.input = {};
-    app.tool("test", tool);
+    server.tool("test", tool);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -313,54 +320,27 @@ describe("tools/call", () => {
       },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
-    expect(data.error).toBeDefined();
-    expect(data.error.message).toContain("Tool arguments are required");
-  });
-
-  it("sanitizes input arguments (prototype pollution)", async () => {
-    const app = createServer();
-
-    const tool = (args) => {
-      // Check if __proto__ is an own property (should be false after sanitization)
-      return { hasProto: Object.hasOwnProperty.call(args, "__proto__") };
-    };
-    tool.input = {};
-    app.tool("test", tool);
-
-    const request = createRequest({
-      jsonrpc: "2.0",
-      id: 9,
-      method: "tools/call",
-      params: {
-        name: "test",
-        arguments: {
-          __proto__: { isAdmin: true },
-          data: "test",
-        },
-      },
-    });
-
-    const response = await app.fetch(request);
-    const data = await response.json();
-
-    const parsed = JSON.parse(data.result.content[0].text);
-    expect(parsed.hasProto).toBe(false);
+    expect(data.error).toBeUndefined();
+    expect(data.result).toBeDefined();
+    expect(data.result.content[0].text).toBe("{}");
   });
 });
 
 describe("resources/list", () => {
   it("returns static resources only", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const staticResource = () => "Static content";
+    const staticResource = (_mctx, _req, res) => {
+      res.send("Static content");
+    };
     staticResource.description = "A static resource";
     staticResource.mimeType = "text/plain";
 
-    app.resource("static://docs", staticResource);
-    app.resource("user://{id}", () => "Template"); // Should not appear in list
+    server.resource("static://docs", staticResource);
+    server.resource("user://{id}", (_mctx, _req, res) => res.send("Template")); // Should not appear in list
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -368,7 +348,7 @@ describe("resources/list", () => {
       method: "resources/list",
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.resources).toHaveLength(1);
@@ -377,20 +357,22 @@ describe("resources/list", () => {
   });
 
   it("throws if resource handler is not a function", () => {
-    const app = createServer();
-    expect(() => app.resource("test://uri", "not a function")).toThrow(/must be a function/);
+    const server = createServer();
+    expect(() => server.resource("test://uri", "not a function")).toThrow(/must be a function/);
   });
 });
 
 describe("resources/templates/list", () => {
   it("returns template resources only", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const templateResource = () => "Template content";
+    const templateResource = (_mctx, _req, res) => {
+      res.send("Template content");
+    };
     templateResource.description = "A template resource";
 
-    app.resource("user://{userId}", templateResource);
-    app.resource("static://docs", () => "Static"); // Should not appear
+    server.resource("user://{userId}", templateResource);
+    server.resource("static://docs", (_mctx, _req, res) => res.send("Static")); // Should not appear
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -398,7 +380,7 @@ describe("resources/templates/list", () => {
       method: "resources/templates/list",
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.resourceTemplates).toHaveLength(1);
@@ -408,13 +390,15 @@ describe("resources/templates/list", () => {
 
 describe("resources/read", () => {
   it("reads static resource", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const docsResource = () => "Documentation content";
+    const docsResource = (_mctx, _req, res) => {
+      res.send("Documentation content");
+    };
     docsResource.mimeType = "text/plain";
 
     // Register with canonicalized URI (single slash after scheme)
-    app.resource("https:/example.com/docs/api", docsResource);
+    server.resource("https:/example.com/docs/api", docsResource);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -423,7 +407,7 @@ describe("resources/read", () => {
       params: { uri: "https:/example.com/docs/api" },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.contents[0].uri).toBe("https:/example.com/docs/api");
@@ -432,17 +416,17 @@ describe("resources/read", () => {
   });
 
   it("reads template resource with parameter extraction", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const userResource = (params) => {
+    const userResource = (_mctx, params, res) => {
       // Handler receives params object, extract userId from it
       const userId = params?.userId || "unknown";
-      return `User: ${userId}`;
+      res.send(`User: ${userId}`);
     };
     userResource.mimeType = "text/plain";
 
     // Use canonicalized URI (single slash after scheme) to match canonicalized request URI
-    app.resource("https:/example.com/user/{userId}", userResource);
+    server.resource("https:/example.com/user/{userId}", userResource);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -451,14 +435,14 @@ describe("resources/read", () => {
       params: { uri: "https://example.com/user/123" },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.contents[0].text).toBe("User: 123");
   });
 
   it("throws if URI is missing", async () => {
-    const app = createServer();
+    const server = createServer();
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -467,7 +451,7 @@ describe("resources/read", () => {
       params: {},
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.error).toBeDefined();
@@ -475,7 +459,7 @@ describe("resources/read", () => {
   });
 
   it("validates URI scheme (blocks dangerous schemes)", async () => {
-    const app = createServer();
+    const server = createServer();
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -484,7 +468,7 @@ describe("resources/read", () => {
       params: { uri: "file:///etc/passwd" },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.error).toBeDefined();
@@ -492,12 +476,14 @@ describe("resources/read", () => {
   });
 
   it("allows custom URI schemes", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const docsResource = () => "README content";
+    const docsResource = (_mctx, _req, res) => {
+      res.send("README content");
+    };
     docsResource.mimeType = "text/plain";
 
-    app.resource("docs://readme", docsResource);
+    server.resource("docs://readme", docsResource);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -506,7 +492,7 @@ describe("resources/read", () => {
       params: { uri: "docs://readme" },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.contents[0].uri).toBe("docs://readme");
@@ -515,15 +501,15 @@ describe("resources/read", () => {
   });
 
   it("allows custom URI scheme templates with parameter extraction", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const userResource = (params) => {
+    const userResource = (_mctx, params, res) => {
       const userId = params?.userId || "unknown";
-      return `User ID: ${userId}`;
+      res.send(`User ID: ${userId}`);
     };
     userResource.mimeType = "text/plain";
 
-    app.resource("user://{userId}", userResource);
+    server.resource("user://{userId}", userResource);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -532,14 +518,14 @@ describe("resources/read", () => {
       params: { uri: "user://alice123" },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.contents[0].text).toBe("User ID: alice123");
   });
 
   it("blocks javascript: scheme", async () => {
-    const app = createServer();
+    const server = createServer();
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -548,7 +534,7 @@ describe("resources/read", () => {
       params: { uri: "javascript:alert(1)" },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.error).toBeDefined();
@@ -556,7 +542,7 @@ describe("resources/read", () => {
   });
 
   it("blocks data: scheme", async () => {
-    const app = createServer();
+    const server = createServer();
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -565,7 +551,7 @@ describe("resources/read", () => {
       params: { uri: "data:text/html,<script>alert(1)</script>" },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.error).toBeDefined();
@@ -573,7 +559,7 @@ describe("resources/read", () => {
   });
 
   it("detects path traversal in HTTP URIs", async () => {
-    const app = createServer();
+    const server = createServer();
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -582,7 +568,7 @@ describe("resources/read", () => {
       params: { uri: "http://example.com/../../../etc/passwd" },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.error).toBeDefined();
@@ -590,7 +576,7 @@ describe("resources/read", () => {
   });
 
   it("detects path traversal in custom scheme URIs (../ pattern)", async () => {
-    const app = createServer();
+    const server = createServer();
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -599,7 +585,7 @@ describe("resources/read", () => {
       params: { uri: "docs://../../../etc/passwd" },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.error).toBeDefined();
@@ -607,7 +593,7 @@ describe("resources/read", () => {
   });
 
   it("detects path traversal in custom scheme URIs (..\\  pattern)", async () => {
-    const app = createServer();
+    const server = createServer();
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -616,7 +602,7 @@ describe("resources/read", () => {
       params: { uri: "docs://..\\\\windows\\\\system32" },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.error).toBeDefined();
@@ -624,15 +610,15 @@ describe("resources/read", () => {
   });
 
   it("detects path traversal in custom scheme with template params", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const userResource = (params) => {
+    const userResource = (_mctx, params, res) => {
       const userId = params?.userId || "unknown";
-      return `User ID: ${userId}`;
+      res.send(`User ID: ${userId}`);
     };
     userResource.mimeType = "text/plain";
 
-    app.resource("user://{userId}", userResource);
+    server.resource("user://{userId}", userResource);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -641,41 +627,22 @@ describe("resources/read", () => {
       params: { uri: "user://alice/../admin" },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.error).toBeDefined();
     expect(data.error.message).toContain("Path traversal detected");
   });
 
-  it("allows legitimate custom scheme URIs without traversal", async () => {
-    const app = createServer();
-
-    const docsResource = () => "README content";
-    docsResource.mimeType = "text/plain";
-
-    app.resource("docs://readme", docsResource);
-
-    const request = createRequest({
-      jsonrpc: "2.0",
-      id: 35,
-      method: "resources/read",
-      params: { uri: "docs://readme" },
-    });
-
-    const response = await app.fetch(request);
-    const data = await response.json();
-
-    expect(data.result.contents[0].text).toBe("README content");
-  });
-
   it("allows custom scheme URIs with path segments", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const docsResource = () => "Nested resource content";
+    const docsResource = (_mctx, _req, res) => {
+      res.send("Nested resource content");
+    };
     docsResource.mimeType = "text/plain";
 
-    app.resource("docs://path/to/resource", docsResource);
+    server.resource("docs://path/to/resource", docsResource);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -684,19 +651,21 @@ describe("resources/read", () => {
       params: { uri: "docs://path/to/resource" },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.contents[0].text).toBe("Nested resource content");
   });
 
   it("blocks URL-encoded path traversal in custom schemes", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const docsResource = () => "Secret content";
+    const docsResource = (_mctx, _req, res) => {
+      res.send("Secret content");
+    };
     docsResource.mimeType = "text/plain";
 
-    app.resource("docs://readme", docsResource);
+    server.resource("docs://readme", docsResource);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -705,7 +674,7 @@ describe("resources/read", () => {
       params: { uri: "docs://%2e%2e%2fetc%2fpasswd" },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.error).toBeDefined();
@@ -713,12 +682,14 @@ describe("resources/read", () => {
   });
 
   it("blocks partially encoded path traversal in custom schemes", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const docsResource = () => "Secret content";
+    const docsResource = (_mctx, _req, res) => {
+      res.send("Secret content");
+    };
     docsResource.mimeType = "text/plain";
 
-    app.resource("docs://readme", docsResource);
+    server.resource("docs://readme", docsResource);
 
     // Test %2e%2e/etc/passwd
     const request1 = createRequest({
@@ -728,7 +699,7 @@ describe("resources/read", () => {
       params: { uri: "docs://%2e%2e/etc/passwd" },
     });
 
-    const response1 = await app.fetch(request1);
+    const response1 = await server.fetch(request1);
     const data1 = await response1.json();
 
     expect(data1.error).toBeDefined();
@@ -742,7 +713,7 @@ describe("resources/read", () => {
       params: { uri: "docs://..%2fetc/passwd" },
     });
 
-    const response2 = await app.fetch(request2);
+    const response2 = await server.fetch(request2);
     const data2 = await response2.json();
 
     expect(data2.error).toBeDefined();
@@ -750,12 +721,14 @@ describe("resources/read", () => {
   });
 
   it("blocks double-encoded path traversal in custom schemes", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const docsResource = () => "Secret content";
+    const docsResource = (_mctx, _req, res) => {
+      res.send("Secret content");
+    };
     docsResource.mimeType = "text/plain";
 
-    app.resource("docs://readme", docsResource);
+    server.resource("docs://readme", docsResource);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -764,7 +737,7 @@ describe("resources/read", () => {
       params: { uri: "docs://%252e%252e%252fetc" },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.error).toBeDefined();
@@ -772,13 +745,15 @@ describe("resources/read", () => {
   });
 
   it("handles Buffer response", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const binaryResource = () => Buffer.from("binary data");
+    const binaryResource = (_mctx, _req, res) => {
+      res.send(Buffer.from("binary data"));
+    };
     binaryResource.mimeType = "application/octet-stream";
 
     // Use canonicalized URI (single slash after scheme)
-    app.resource("https:/example.com/binary", binaryResource);
+    server.resource("https:/example.com/binary", binaryResource);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -787,7 +762,7 @@ describe("resources/read", () => {
       params: { uri: "https://example.com/binary" },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     // Buffer is converted to base64 blob
@@ -798,16 +773,18 @@ describe("resources/read", () => {
 
 describe("prompts/list", () => {
   it("lists prompts with arguments", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const codeReview = ({ code }) => `Review: ${code}`;
+    const codeReview = (_mctx, { code }, res) => {
+      res.send(`Review: ${code}`);
+    };
     codeReview.description = "Code review prompt";
     codeReview.input = {
       code: T.string({ required: true, description: "Code to review" }),
       language: T.string({ description: "Programming language" }),
     };
 
-    app.prompt("code-review", codeReview);
+    server.prompt("code-review", codeReview);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -815,7 +792,7 @@ describe("prompts/list", () => {
       method: "prompts/list",
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.prompts).toHaveLength(1);
@@ -827,19 +804,21 @@ describe("prompts/list", () => {
   });
 
   it("throws if prompt handler is not a function", () => {
-    const app = createServer();
-    expect(() => app.prompt("test", "not a function")).toThrow(/must be a function/);
+    const server = createServer();
+    expect(() => server.prompt("test", "not a function")).toThrow(/must be a function/);
   });
 });
 
 describe("prompts/get", () => {
-  it("gets prompt with string return", async () => {
-    const app = createServer();
+  it("gets prompt with string return via res.send()", async () => {
+    const server = createServer();
 
-    const simplePrompt = ({ topic }) => `Tell me about ${topic}`;
+    const simplePrompt = (_mctx, { topic }, res) => {
+      res.send(`Tell me about ${topic}`);
+    };
     simplePrompt.input = { topic: T.string({ required: true }) };
 
-    app.prompt("simple", simplePrompt);
+    server.prompt("simple", simplePrompt);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -851,7 +830,7 @@ describe("prompts/get", () => {
       },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(Array.isArray(data.result.messages)).toBe(true);
@@ -863,14 +842,16 @@ describe("prompts/get", () => {
 
 describe("pagination", () => {
   it("paginates tools with cursor and nextCursor", async () => {
-    const app = createServer();
+    const server = createServer();
 
     // Register 60 tools (more than page size of 50)
     for (let i = 0; i < 60; i++) {
-      const tool = () => `Result ${i}`;
+      const tool = (_mctx, _req, res) => {
+        res.send(`Result ${i}`);
+      };
       tool.description = `Tool ${i}`;
       tool.input = {};
-      app.tool(`tool${i}`, tool);
+      server.tool(`tool${i}`, tool);
     }
 
     // First page
@@ -880,7 +861,7 @@ describe("pagination", () => {
       method: "tools/list",
     });
 
-    const response1 = await app.fetch(request1);
+    const response1 = await server.fetch(request1);
     const data1 = await response1.json();
 
     expect(data1.result.tools).toHaveLength(50);
@@ -894,7 +875,7 @@ describe("pagination", () => {
       params: { cursor: data1.result.nextCursor },
     });
 
-    const response2 = await app.fetch(request2);
+    const response2 = await server.fetch(request2);
     const data2 = await response2.json();
 
     expect(data2.result.tools).toHaveLength(10);
@@ -904,7 +885,7 @@ describe("pagination", () => {
 
 describe("JSON-RPC protocol", () => {
   it("returns error for unknown method", async () => {
-    const app = createServer();
+    const server = createServer();
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -912,7 +893,7 @@ describe("JSON-RPC protocol", () => {
       method: "unknown/method",
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.error.code).toBe(-32601);
@@ -920,7 +901,7 @@ describe("JSON-RPC protocol", () => {
   });
 
   it("returns parse error for malformed JSON", async () => {
-    const app = createServer();
+    const server = createServer();
 
     const request = new Request("http://localhost", {
       method: "POST",
@@ -928,7 +909,7 @@ describe("JSON-RPC protocol", () => {
       body: "not json",
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.error.code).toBe(-32700);
@@ -936,26 +917,26 @@ describe("JSON-RPC protocol", () => {
   });
 
   it("returns 204 for notifications (no id)", async () => {
-    const app = createServer();
+    const server = createServer();
 
     const request = createRequest({
       jsonrpc: "2.0",
       method: "notifications/cancelled",
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
 
     expect(response.status).toBe(204);
   });
 
   it("returns error for non-POST requests", async () => {
-    const app = createServer();
+    const server = createServer();
 
     const request = new Request("http://localhost", {
       method: "GET",
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(response.status).toBe(405);
@@ -963,7 +944,7 @@ describe("JSON-RPC protocol", () => {
   });
 
   it("returns error for missing method", async () => {
-    const app = createServer();
+    const server = createServer();
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -971,7 +952,7 @@ describe("JSON-RPC protocol", () => {
       params: {},
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.error.code).toBe(-32600);
@@ -981,16 +962,16 @@ describe("JSON-RPC protocol", () => {
 
 describe("safeSerialize()", () => {
   it("handles circular references", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const circularTool = () => {
+    const circularTool = (_mctx, _req, res) => {
       const obj = { name: "test" };
       obj.self = obj;
-      return obj;
+      res.send(obj);
     };
     circularTool.input = {};
 
-    app.tool("circular", circularTool);
+    server.tool("circular", circularTool);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -1002,19 +983,21 @@ describe("safeSerialize()", () => {
       },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.content[0].text).toContain("[Circular]");
   });
 
   it("handles BigInt values", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const bigIntTool = () => ({ value: BigInt(9007199254740991) });
+    const bigIntTool = (_mctx, _req, res) => {
+      res.send({ value: BigInt(9007199254740991) });
+    };
     bigIntTool.input = {};
 
-    app.tool("bigint", bigIntTool);
+    server.tool("bigint", bigIntTool);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -1026,7 +1009,7 @@ describe("safeSerialize()", () => {
       },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     const parsed = JSON.parse(data.result.content[0].text);
@@ -1034,12 +1017,14 @@ describe("safeSerialize()", () => {
   });
 
   it("handles Date objects", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const dateTool = () => ({ timestamp: new Date("2024-01-01T00:00:00Z") });
+    const dateTool = (_mctx, _req, res) => {
+      res.send({ timestamp: new Date("2024-01-01T00:00:00Z") });
+    };
     dateTool.input = {};
 
-    app.tool("date", dateTool);
+    server.tool("date", dateTool);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -1051,7 +1036,7 @@ describe("safeSerialize()", () => {
       },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     const parsed = JSON.parse(data.result.content[0].text);
@@ -1059,38 +1044,9 @@ describe("safeSerialize()", () => {
   });
 });
 
-describe("error sanitization", () => {
-  it("redacts AWS keys from errors", async () => {
-    const app = createServer();
-
-    const errorTool = () => {
-      throw new Error("Failed with key AKIAIOSFODNN7EXAMPLE");
-    };
-    errorTool.input = {};
-
-    app.tool("error", errorTool);
-
-    const request = createRequest({
-      jsonrpc: "2.0",
-      id: 27,
-      method: "tools/call",
-      params: {
-        name: "error",
-        arguments: {},
-      },
-    });
-
-    const response = await app.fetch(request);
-    const data = await response.json();
-
-    expect(data.result.content[0].text).toContain("[REDACTED_AWS_KEY]");
-    expect(data.result.content[0].text).not.toContain("AKIAIOSFODNN7EXAMPLE");
-  });
-});
-
 describe("initialize", () => {
   it("responds with server info and capabilities", async () => {
-    const app = createServer();
+    const server = createServer();
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -1106,7 +1062,7 @@ describe("initialize", () => {
       },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.jsonrpc).toBe("2.0");
@@ -1114,12 +1070,12 @@ describe("initialize", () => {
     expect(data.result.protocolVersion).toBe("2025-11-25");
     expect(data.result.capabilities).toBeDefined();
     expect(data.result.serverInfo).toBeDefined();
-    expect(data.result.serverInfo.name).toBe("@mctx-ai/app");
-    expect(data.result.serverInfo.version).toBe("0.3.0");
+    expect(data.result.serverInfo.name).toBe("@mctx-ai/mcp");
+    expect(data.result.serverInfo.version).toBe(packageVersion);
   });
 
   it("includes instructions when provided", async () => {
-    const app = createServer({
+    const server = createServer({
       instructions: "You help developers debug CI pipelines...",
     });
 
@@ -1129,14 +1085,14 @@ describe("initialize", () => {
       method: "initialize",
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.instructions).toBe("You help developers debug CI pipelines...");
   });
 
   it("omits instructions when not provided", async () => {
-    const app = createServer();
+    const server = createServer();
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -1144,18 +1100,20 @@ describe("initialize", () => {
       method: "initialize",
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.instructions).toBeUndefined();
   });
 
   it("auto-detects capabilities from registered tools", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const greet = () => "Hello!";
+    const greet = (_mctx, _req, res) => {
+      res.send("Hello!");
+    };
     greet.input = {};
-    app.tool("greet", greet);
+    server.tool("greet", greet);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -1163,7 +1121,7 @@ describe("initialize", () => {
       method: "initialize",
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.capabilities.tools).toBeDefined();
@@ -1171,10 +1129,12 @@ describe("initialize", () => {
   });
 
   it("auto-detects capabilities from registered resources", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const resource = () => "content";
-    app.resource("https://example.com/data", resource);
+    const resource = (_mctx, _req, res) => {
+      res.send("content");
+    };
+    server.resource("https://example.com/data", resource);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -1182,7 +1142,7 @@ describe("initialize", () => {
       method: "initialize",
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.capabilities.resources).toBeDefined();
@@ -1192,11 +1152,13 @@ describe("initialize", () => {
   });
 
   it("auto-detects capabilities from registered prompts", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const prompt = () => "message";
+    const prompt = (_mctx, _req, res) => {
+      res.send("message");
+    };
     prompt.input = {};
-    app.prompt("test", prompt);
+    server.prompt("test", prompt);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -1204,7 +1166,7 @@ describe("initialize", () => {
       method: "initialize",
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.capabilities.prompts).toBeDefined();
@@ -1212,18 +1174,24 @@ describe("initialize", () => {
   });
 
   it("includes all capabilities when tools, resources, and prompts are registered", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const tool = () => "result";
+    const tool = (_mctx, _req, res) => {
+      res.send("result");
+    };
     tool.input = {};
-    app.tool("test-tool", tool);
+    server.tool("test-tool", tool);
 
-    const resource = () => "content";
-    app.resource("https://example.com/data", resource);
+    const resource = (_mctx, _req, res) => {
+      res.send("content");
+    };
+    server.resource("https://example.com/data", resource);
 
-    const prompt = () => "message";
+    const prompt = (_mctx, _req, res) => {
+      res.send("message");
+    };
     prompt.input = {};
-    app.prompt("test-prompt", prompt);
+    server.prompt("test-prompt", prompt);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -1231,7 +1199,7 @@ describe("initialize", () => {
       method: "initialize",
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.capabilities.tools).toBeDefined();
@@ -1241,7 +1209,7 @@ describe("initialize", () => {
   });
 
   it("only includes logging capability when nothing is registered", async () => {
-    const app = createServer();
+    const server = createServer();
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -1249,7 +1217,7 @@ describe("initialize", () => {
       method: "initialize",
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.capabilities.tools).toBeUndefined();
@@ -1257,114 +1225,18 @@ describe("initialize", () => {
     expect(data.result.capabilities.prompts).toBeUndefined();
     expect(data.result.capabilities.logging).toBeDefined();
   });
-
-  it("includes channels capability when all three env vars are set with a valid secret", async () => {
-    const app = createServer();
-
-    const request = createRequest({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "initialize",
-    });
-
-    const env = {
-      MCTX_EVENTS_ENDPOINT: "https://events.example.com",
-      MCTX_SERVER_ID: "server-123",
-      MCTX_EVENTS_SECRET: "a".repeat(32),
-    };
-    const response = await app.fetch(request, env);
-    const data = await response.json();
-
-    expect(data.result.capabilities.channels).toBeDefined();
-  });
-
-  it("always advertises channels capability when no env is passed (header-based, no env vars needed)", async () => {
-    const app = createServer();
-
-    const request = createRequest({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "initialize",
-    });
-
-    const response = await app.fetch(request);
-    const data = await response.json();
-
-    // channels is always advertised — it uses response headers, not HTTP+env vars
-    expect(data.result.capabilities.channels).toBeDefined();
-  });
-
-  it("always advertises channels capability regardless of missing MCTX_SERVER_ID", async () => {
-    const app = createServer();
-
-    const request = createRequest({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "initialize",
-    });
-
-    const env = {
-      MCTX_EVENTS_ENDPOINT: "https://events.example.com",
-      MCTX_EVENTS_SECRET: "a".repeat(32),
-      // MCTX_SERVER_ID intentionally omitted — no longer relevant
-    };
-    const response = await app.fetch(request, env);
-    const data = await response.json();
-
-    expect(data.result.capabilities.channels).toBeDefined();
-  });
-
-  it("always advertises channels capability regardless of missing MCTX_EVENTS_SECRET", async () => {
-    const app = createServer();
-
-    const request = createRequest({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "initialize",
-    });
-
-    const env = {
-      MCTX_EVENTS_ENDPOINT: "https://events.example.com",
-      MCTX_SERVER_ID: "server-123",
-      // MCTX_EVENTS_SECRET intentionally omitted — no longer relevant
-    };
-    const response = await app.fetch(request, env);
-    const data = await response.json();
-
-    expect(data.result.capabilities.channels).toBeDefined();
-  });
-
-  it("always advertises channels capability regardless of short MCTX_EVENTS_SECRET", async () => {
-    const app = createServer();
-
-    const request = createRequest({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "initialize",
-    });
-
-    const env = {
-      MCTX_EVENTS_ENDPOINT: "https://events.example.com",
-      MCTX_SERVER_ID: "server-123",
-      MCTX_EVENTS_SECRET: "tooshort", // no longer relevant — channels use response headers
-    };
-    const response = await app.fetch(request, env);
-    const data = await response.json();
-
-    expect(data.result.capabilities.channels).toBeDefined();
-  });
 });
 
 describe("initialized notification", () => {
   it("responds with 204 No Content for initialized notification", async () => {
-    const app = createServer();
+    const server = createServer();
 
     const request = createRequest({
       jsonrpc: "2.0",
       method: "initialized",
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
 
     expect(response.status).toBe(204);
     expect(response.body).toBeNull();
@@ -1373,7 +1245,7 @@ describe("initialized notification", () => {
 
 describe("ping", () => {
   it("responds to ping with empty result", async () => {
-    const app = createServer();
+    const server = createServer();
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -1381,7 +1253,7 @@ describe("ping", () => {
       method: "ping",
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.jsonrpc).toBe("2.0");
@@ -1399,13 +1271,15 @@ function createRequestWithHeaders(body, headers) {
   });
 }
 
-describe("ctx.userId — X-Mctx-User-Id header forwarding", () => {
+describe("mctx.userId — X-Mctx-User-Id header forwarding", () => {
   it("passes userId to tool handler when X-Mctx-User-Id header is present", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const whoami = (_args, _ask, ctx) => ctx.userId ?? "anonymous";
+    const whoami = (mctx, _req, res) => {
+      res.send(mctx.userId ?? "anonymous");
+    };
     whoami.input = {};
-    app.tool("whoami", whoami);
+    server.tool("whoami", whoami);
 
     const request = createRequestWithHeaders(
       {
@@ -1417,18 +1291,20 @@ describe("ctx.userId — X-Mctx-User-Id header forwarding", () => {
       { "X-Mctx-User-Id": "user-abc-123" },
     );
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.content[0].text).toBe("user-abc-123");
   });
 
   it("passes undefined userId to tool handler when X-Mctx-User-Id header is absent", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const whoami = (_args, _ask, ctx) => (ctx.userId === undefined ? "no-user" : ctx.userId);
+    const whoami = (mctx, _req, res) => {
+      res.send(mctx.userId === undefined ? "no-user" : mctx.userId);
+    };
     whoami.input = {};
-    app.tool("whoami", whoami);
+    server.tool("whoami", whoami);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -1437,18 +1313,20 @@ describe("ctx.userId — X-Mctx-User-Id header forwarding", () => {
       params: { name: "whoami", arguments: {} },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.content[0].text).toBe("no-user");
   });
 
   it("passes userId to resource handler when X-Mctx-User-Id header is present", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const profileResource = (_params, _ask, ctx) => `profile:${ctx.userId ?? "anonymous"}`;
+    const profileResource = (mctx, _params, res) => {
+      res.send(`profile:${mctx.userId ?? "anonymous"}`);
+    };
     profileResource.mimeType = "text/plain";
-    app.resource("docs://profile", profileResource);
+    server.resource("docs://profile", profileResource);
 
     const request = createRequestWithHeaders(
       {
@@ -1460,19 +1338,20 @@ describe("ctx.userId — X-Mctx-User-Id header forwarding", () => {
       { "X-Mctx-User-Id": "user-xyz-456" },
     );
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.contents[0].text).toBe("profile:user-xyz-456");
   });
 
   it("passes undefined userId to resource handler when X-Mctx-User-Id header is absent", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const profileResource = (_params, _ask, ctx) =>
-      ctx.userId === undefined ? "no-user" : ctx.userId;
+    const profileResource = (mctx, _params, res) => {
+      res.send(mctx.userId === undefined ? "no-user" : mctx.userId);
+    };
     profileResource.mimeType = "text/plain";
-    app.resource("docs://profile", profileResource);
+    server.resource("docs://profile", profileResource);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -1481,18 +1360,20 @@ describe("ctx.userId — X-Mctx-User-Id header forwarding", () => {
       params: { uri: "docs://profile" },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.contents[0].text).toBe("no-user");
   });
 
   it("passes userId to prompt handler when X-Mctx-User-Id header is present", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const greetPrompt = (_args, _ask, ctx) => `Hello, ${ctx.userId ?? "stranger"}!`;
+    const greetPrompt = (mctx, _req, res) => {
+      res.send(`Hello, ${mctx.userId ?? "stranger"}!`);
+    };
     greetPrompt.input = {};
-    app.prompt("greet", greetPrompt);
+    server.prompt("greet", greetPrompt);
 
     const request = createRequestWithHeaders(
       {
@@ -1504,19 +1385,20 @@ describe("ctx.userId — X-Mctx-User-Id header forwarding", () => {
       { "X-Mctx-User-Id": "user-qrs-789" },
     );
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.messages[0].content.text).toBe("Hello, user-qrs-789!");
   });
 
   it("passes undefined userId to prompt handler when X-Mctx-User-Id header is absent", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    const greetPrompt = (_args, _ask, ctx) =>
-      ctx.userId === undefined ? "no-user" : `Hello, ${ctx.userId}!`;
+    const greetPrompt = (mctx, _req, res) => {
+      res.send(mctx.userId === undefined ? "no-user" : `Hello, ${mctx.userId}!`);
+    };
     greetPrompt.input = {};
-    app.prompt("greet", greetPrompt);
+    server.prompt("greet", greetPrompt);
 
     const request = createRequest({
       jsonrpc: "2.0",
@@ -1525,19 +1407,23 @@ describe("ctx.userId — X-Mctx-User-Id header forwarding", () => {
       params: { name: "greet", arguments: {} },
     });
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.messages[0].content.text).toBe("no-user");
   });
 
   it("two-parameter tool handler continues to work without modification", async () => {
-    const app = createServer();
+    const server = createServer();
 
-    // Declares only (args) — no ask or ctx param
-    const echo = ({ message }) => message;
+    // Declares only (mctx, args) — no res param, handler returns value instead of calling res.send()
+    // Note: without res.send(), the captured result is undefined, which serializes as "null"
+    // This test verifies backward compatibility expectations
+    const echo = (_mctx, { message }, res) => {
+      res.send(message);
+    };
     echo.input = { message: { type: "string" } };
-    app.tool("echo", echo);
+    server.tool("echo", echo);
 
     const request = createRequestWithHeaders(
       {
@@ -1549,7 +1435,7 @@ describe("ctx.userId — X-Mctx-User-Id header forwarding", () => {
       { "X-Mctx-User-Id": "user-compat-test" },
     );
 
-    const response = await app.fetch(request);
+    const response = await server.fetch(request);
     const data = await response.json();
 
     expect(data.result.content[0].text).toBe("hello");

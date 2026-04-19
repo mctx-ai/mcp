@@ -316,6 +316,8 @@ describe("conversation() - edge cases", () => {
       user.say("Special chars: \"quotes\", 'apostrophes', <tags>, & ampersands"),
     ]);
 
-    expect(result.messages[0].content.text).toContain("Special chars");
+    expect(result.messages[0].content.text).toBe(
+      "Special chars: \"quotes\", 'apostrophes', <tags>, & ampersands",
+    );
   });
 });

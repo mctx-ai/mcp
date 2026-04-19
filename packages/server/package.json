@@ -1,7 +1,7 @@
 {
-  "name": "@mctx-ai/app",
-  "version": "1.1.0",
-  "description": "Build Apps for AI with an Express-like API — no protocol knowledge required",
+  "name": "@mctx-ai/mcp",
+  "version": "2.0.1",
+  "description": "mctx — The best way to Build an MCP Server",
   "type": "module",
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
@@ -16,7 +16,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "mkdir -p dist && cp src/*.js src/*.d.ts dist/",
+    "build": "rm -rf dist && mkdir -p dist && cp src/*.js src/*.d.ts dist/",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src/ test/",

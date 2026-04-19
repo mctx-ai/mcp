@@ -9,7 +9,7 @@
  */
 
 import { createServer } from "http";
-import { getLogBuffer, clearLogBuffer } from "@mctx-ai/app";
+import { getLogBuffer, clearLogBuffer } from "@mctx-ai/mcp";
 import { watch } from "./watcher.js";
 
 // ANSI color codes for logging
@@ -43,7 +43,8 @@ function log(message, color = colors.reset) {
  */
 function logFramework(message, color = colors.reset) {
   console.log(
-    `${colors.gray}[${timestamp()}]${colors.reset} ${colors.bright}[mctx-dev]${colors.reset} ${color}${message}${colors.reset}`,
+    `${colors.gray}[${timestamp()}]${colors.reset} ${colors.bright}[mctx-dev]${colors.reset} ` +
+      `${color}${message}${colors.reset}`,
   );
 }
 
@@ -104,13 +105,25 @@ function formatError(error, rpcRequest) {
     formatted += `${stack}\n`;
   }
 
-  // Add helpful hints for common errors
-  if (error.message.includes("not found")) {
-    formatted += `\n${colors.yellow}Hint:${colors.reset} Check if the ${rpcRequest.method.split("/")[0]} is registered in your server.\n`;
-  } else if (error.message.includes("required")) {
-    formatted += `\n${colors.yellow}Hint:${colors.reset} Check your request parameters. Some fields might be missing.\n`;
-  } else if (error.message.includes("undefined")) {
-    formatted += `\n${colors.yellow}Hint:${colors.reset} Did you forget to return a value from your handler?\n`;
+  // Add helpful hints scoped to MCP handler errors only (e.g. "Tool "greet" not found")
+  const isMcpHandlerError =
+    error.message.startsWith('Tool "') ||
+    error.message.startsWith('Prompt "') ||
+    error.message.startsWith('Resource "');
+  if (isMcpHandlerError) {
+    if (error.message.includes("not found")) {
+      formatted +=
+        `\n${colors.yellow}Hint:${colors.reset} Check if the ` +
+        `${rpcRequest.method.split("/")[0]} is registered in your server.\n`;
+    } else if (error.message.includes("required")) {
+      formatted +=
+        `\n${colors.yellow}Hint:${colors.reset} Check your request ` +
+        "parameters. Some fields might be missing.\n";
+    } else if (error.message.includes("undefined")) {
+      formatted +=
+        `\n${colors.yellow}Hint:${colors.reset} Did you forget to return ` +
+        "a value from your handler?\n";
+    }
   }
 
   return formatted;
@@ -132,8 +145,10 @@ function formatError(error, rpcRequest) {
  * Hop-by-hop headers are filtered out before forwarding to prevent header
  * forwarding edge cases in the dev server.
  *
- * @param {string} rawBody - The raw JSON string already read from the Node IncomingMessage
- * @param {import("http").IncomingHttpHeaders} incomingHeaders - Headers from the Node IncomingMessage
+ * @param {string} rawBody - The raw JSON string already read from the Node
+ *   IncomingMessage
+ * @param {import("http").IncomingHttpHeaders} incomingHeaders - Headers from
+ *   the Node IncomingMessage
  */
 function createRequest(rawBody, incomingHeaders = {}) {
   // Hop-by-hop headers that should not be forwarded
@@ -179,31 +194,40 @@ export async function startDevServer(entryUrl, port) {
 
   // Load the user's app
   async function loadApp() {
-    try {
-      // Clear module from cache for hot reload
-      if (entryUrl.startsWith("file://")) {
-        const modulePath = entryUrl;
-        // Add cache-busting query parameter for ES modules
-        const cacheBustedUrl = `${modulePath}?t=${Date.now()}`;
-        appModule = await import(cacheBustedUrl);
-      } else {
-        appModule = await import(entryUrl);
-      }
-
-      app = appModule.default;
-
-      if (!app) {
-        throw new Error("Entry file must have a default export (the app instance)");
-      }
-
-      if (typeof app.fetch !== "function") {
-        throw new Error("App must have a fetch method (created via createServer())");
-      }
-
-      return true;
-    } catch (error) {
-      throw error;
+    // Clear module from cache for hot reload
+    if (entryUrl.startsWith("file://")) {
+      const modulePath = entryUrl;
+      // Add cache-busting query parameter for ES modules
+      const cacheBustedUrl = `${modulePath}?t=${Date.now()}`;
+      appModule = await import(cacheBustedUrl);
+    } else {
+      appModule = await import(entryUrl);
     }
+
+    app = appModule.default;
+
+    // Warn if the module has named exports alongside the default export.
+    // Module-level state in named exports persists across hot reloads because
+    // cache-busting only re-evaluates the module — it does not reset shared
+    // state that callers hold references to.
+    const namedExports = Object.keys(appModule).filter((k) => k !== "default");
+    if (namedExports.length > 0) {
+      logFramework(
+        `[warn] Module has non-default exports: ${namedExports.join(", ")}. ` +
+          "Module-level state in these exports will persist across hot reloads.",
+        colors.yellow,
+      );
+    }
+
+    if (!app) {
+      throw new Error("Entry file must have a default export (the app instance)");
+    }
+
+    if (typeof app.fetch !== "function") {
+      throw new Error("App must have a fetch method (created via createServer())");
+    }
+
+    return true;
   }
 
   // Initial load (Fix #2: handle syntax errors gracefully)
@@ -454,7 +478,8 @@ export async function startDevServer(entryUrl, port) {
             const dataStr =
               typeof entry.data === "string" ? entry.data : JSON.stringify(entry.data);
             console.log(
-              `${colors.gray}[${timestamp()}]${colors.reset} ${levelColor}[log:${entry.level}]${colors.reset} ${dataStr}`,
+              `${colors.gray}[${timestamp()}]${colors.reset} ` +
+                `${levelColor}[log:${entry.level}]${colors.reset} ${dataStr}`,
             );
           }
         }
@@ -477,10 +502,7 @@ export async function startDevServer(entryUrl, port) {
         // Slow tool warning: if tools/call took >1000ms
         if (rpcRequest.method === "tools/call" && elapsed > 1000) {
           const toolName = rpcRequest.params?.name || "unknown";
-          log(
-            `${colors.yellow}⚠️  Slow tool: ${toolName} took ${elapsed}ms${colors.reset}`,
-            colors.yellow,
-          );
+          logFramework(`[warn] Slow tool: ${toolName} took ${elapsed}ms`, colors.yellow);
         }
 
         // If error, show details
@@ -542,14 +564,15 @@ export async function startDevServer(entryUrl, port) {
       .join("\n");
 
     console.log(`
-${colors.bright}${colors.cyan}🔧 mctx dev server running at http://localhost:${port}${colors.reset}
+${colors.bright}${colors.cyan}[mctx-dev] Server running at http://localhost:${port}${colors.reset}
 
 ${colors.bright}Test with curl:${colors.reset}
   ${colors.dim}curl -X POST http://localhost:${port} \\
     -H "Content-Type: application/json" \\
     -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'${colors.reset}
 
-${colors.bright}Claude Desktop config${colors.reset} ${colors.dim}(~/.config/claude/claude_desktop_config.json):${colors.reset}
+${colors.bright}Claude Desktop config${colors.reset}
+  ${colors.dim}(~/.config/claude/claude_desktop_config.json):${colors.reset}
   ${colors.dim}{
     "mcpServers": {
       "my-app": {

@@ -1,6 +1,7 @@
 {
   "name": "@mctx-ai/app-monorepo",
   "version": "0.1.0",
+  "description": "mctx — The best way to Build an MCP Server",
   "private": true,
   "type": "module",
   "engines": {
@@ -11,6 +12,7 @@
     "packages/*"
   ],
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks && chmod +x .githooks/pre-push",
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",

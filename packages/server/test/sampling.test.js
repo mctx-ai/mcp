@@ -196,10 +196,12 @@ describe("ask() - timeout", () => {
     const sendRequest = vi.fn().mockResolvedValue(mockResponse);
     const ask = createAsk(sendRequest, { sampling: true });
 
-    await ask("Test");
+    const result = await ask("Test");
 
-    // No way to directly test timeout value, but we can verify it works
-    expect(sendRequest).toHaveBeenCalled();
+    expect(sendRequest).toHaveBeenCalledWith("sampling/createMessage", {
+      messages: [{ role: "user", content: { type: "text", text: "Test" } }],
+    });
+    expect(result).toBe("Response");
   });
 
   it("accepts custom timeout", async () => {
@@ -207,9 +209,12 @@ describe("ask() - timeout", () => {
     const sendRequest = vi.fn().mockResolvedValue(mockResponse);
     const ask = createAsk(sendRequest, { sampling: true });
 
-    await ask("Test", 60000);
+    const result = await ask("Test", 60000);
 
-    expect(sendRequest).toHaveBeenCalled();
+    expect(sendRequest).toHaveBeenCalledWith("sampling/createMessage", {
+      messages: [{ role: "user", content: { type: "text", text: "Test" } }],
+    });
+    expect(result).toBe("Response");
   });
 
   it("times out after specified duration", async () => {

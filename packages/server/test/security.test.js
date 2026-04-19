@@ -712,10 +712,7 @@ describe("sanitizeInput() - prototype pollution", () => {
     expect(sanitizeInput([])).toEqual([]);
   });
 
-  it("preserves legitimate __proto__ values as regular properties", () => {
-    // Note: This tests that only the special __proto__ accessor is removed,
-    // but if someone has a regular property named "__proto__" (not the accessor),
-    // it should be removed for safety.
+  it("preserves normal properties when sanitizing input", () => {
     const obj = { normalProp: "value" };
     const sanitized = sanitizeInput(obj);
 
@@ -724,19 +721,21 @@ describe("sanitizeInput() - prototype pollution", () => {
 });
 
 describe("security integration", () => {
-  it("validates and sanitizes request pipeline", () => {
+  it("accepts a normal-sized JSON request body without error", () => {
     const rawBody = JSON.stringify({
       method: "test",
-      params: {
-        __proto__: { isAdmin: true },
-        data: "safe",
-      },
+      params: { __proto__: { isAdmin: true }, data: "safe" },
     });
 
-    // Step 1: Validate size
     expect(() => validateRequestSize(rawBody)).not.toThrow();
+  });
 
-    // Step 2: Parse and sanitize
+  it("removes __proto__ keys from parsed request params", () => {
+    const rawBody = JSON.stringify({
+      method: "test",
+      params: { __proto__: { isAdmin: true }, data: "safe" },
+    });
+
     const parsed = JSON.parse(rawBody);
     const sanitized = sanitizeInput(parsed);
 

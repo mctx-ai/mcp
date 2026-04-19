@@ -1,4 +1,4 @@
-# Contributing to @mctx-ai/app
+# Contributing to @mctx-ai/mcp
 
 Thank you for your interest in contributing! I welcome contributions from the community.
 

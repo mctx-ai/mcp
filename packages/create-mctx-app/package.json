@@ -1,13 +1,14 @@
 {
-  "name": "create-mctx-app",
-  "version": "1.0.0",
-  "description": "Create a new mctx App project",
+  "name": "create-mctx-server",
+  "version": "2.0.0",
+  "description": "Scaffold an mctx MCP server in one command",
   "type": "module",
   "bin": {
-    "create-mctx-app": "index.js"
+    "create-mctx-server": "index.js"
   },
   "files": [
-    "index.js"
+    "index.js",
+    "template/"
   ],
   "keywords": [
     "mcp",
@@ -27,6 +28,9 @@
     "url": "https://github.com/mctx-ai/app/issues"
   },
   "homepage": "https://docs.mctx.ai",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "publishConfig": {
     "access": "public",
     "provenance": true

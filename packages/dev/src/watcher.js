@@ -11,7 +11,7 @@
  */
 
 import { watch as fsWatch, existsSync } from "fs";
-import { dirname, basename, join } from "path";
+import { dirname, join } from "path";
 
 // ANSI color codes
 const colors = {
@@ -62,7 +62,7 @@ function getWatchDirs(entryFilePath) {
 
   if (!projectRoot) {
     // No package.json found, fall back to entry file directory
-    return [{ path: entryDir, recursive: false }];
+    return [{ path: entryDir, recursive: true }];
   }
 
   const watchDirs = [];

@@ -36,9 +36,9 @@ Note: npm is included with Node.js, so no additional setup action is required.
 
 Three npm workspaces in `packages/` (defined via `"workspaces": ["packages/*"]` in root `package.json`):
 
-- **`@mctx-ai/app`** (`packages/server/`) — Core framework. Zero runtime dependencies. Exports `createServer`, `T`, `conversation`, `createProgress`, `PROGRESS_DEFAULTS`, `log`, `buildInputSchema`, `getLogBuffer`, `clearLogBuffer`, `createEmit`, `META_KEY_PATTERN`. Type exports include `McpContext` (`{ userId?: string, emit: EmitFunction }`). Build is a simple `cp src/*.js src/*.d.ts dist/` (no transpilation).
-- **`@mctx-ai/dev`** (`packages/dev/`) — Dev server with hot reload, request logging, log surfacing (handler log entries printed to dev console), and sampling stub (`/_mctx/sampling` endpoint returns error in dev mode). Peer-depends on `@mctx-ai/app`. Uses Node.js built-in test runner (`node --test`), not Vitest. Lint is a stub (`echo 'Linting not configured yet'`).
-- **`create-mctx-app`** (`packages/create-mctx-app/`) — CLI scaffolding tool (`npm create mctx-app <name>`). Generates a new project with `@mctx-ai/app` + `@mctx-ai/dev` + `esbuild` configured.
+- **`@mctx-ai/mcp`** (`packages/server/`) — Core framework. Zero runtime dependencies. Exports `createServer`, `T`, `conversation`, `log`, `buildInputSchema`, `getLogBuffer`, `clearLogBuffer`. Type exports include `ModelContext` (`{ userId?: string }`). Build is a simple `cp src/*.js src/*.d.ts dist/` (no transpilation).
+- **`@mctx-ai/dev`** (`packages/dev/`) — Dev server with hot reload, request logging, log surfacing (handler log entries printed to dev console), and sampling stub (`/_mctx/sampling` endpoint returns error in dev mode). Peer-depends on `@mctx-ai/mcp`. Uses Node.js built-in test runner (`node --test`), not Vitest. Lint is a stub (`echo 'Linting not configured yet'`).
+- **`create-mctx-server`** (`packages/create-mctx-app/`) — CLI scaffolding tool (`npm create mctx-server <name>`). Generates a new project with `@mctx-ai/mcp` + `@mctx-ai/dev` + `esbuild` configured.
 
 Root commands affect all workspaces. Use `--workspace` flag for package-specific operations.
 
@@ -64,15 +64,15 @@ npm run format:check  # Check formatting without modifying
 
 ```bash
 # Testing
-npm run test --workspace=@mctx-ai/app
-npm run test:coverage --workspace=@mctx-ai/app  # V8 coverage, 80% thresholds
+npm run test --workspace=@mctx-ai/mcp
+npm run test:coverage --workspace=@mctx-ai/mcp  # V8 coverage, 80% thresholds
 npx vitest run test/uri.test.js                        # Single test file (from packages/server/)
 npx vitest run -t "test name"                          # Specific test by name
 
 # Code quality
-npm run lint --workspace=@mctx-ai/app
-npm run lint:fix --workspace=@mctx-ai/app
-npm run typecheck --workspace=@mctx-ai/app  # tsc --noEmit
+npm run lint --workspace=@mctx-ai/mcp
+npm run lint:fix --workspace=@mctx-ai/mcp
+npm run typecheck --workspace=@mctx-ai/mcp  # tsc --noEmit
 ```
 
 ---
@@ -111,96 +111,28 @@ npm run typecheck --workspace=@mctx-ai/app  # tsc --noEmit
 Functions carry metadata as properties:
 
 ```javascript
-function greet({ name }) {
-  return `Hello, ${name}!`;
+function greet(mctx, req, res) {
+  res.send(`Hello, ${req.name}!`);
 }
 greet.description = "Greet someone by name";
 greet.input = { name: T.string({ required: true }) };
 
-app.tool("greet", greet);
+server.tool("greet", greet);
 ```
 
-Handler functions receive up to three parameters: `(args, ask, ctx)` for tools and prompts, `(params, ask, ctx)` for resource templates. All parameters are optional. `ctx` is an `McpContext` object `{ userId?: string }` populated automatically by the platform.
+Handler functions receive three parameters: `(mctx, req, res)` for all handler types (tools, resources, and prompts).
+
+- `mctx` — model context: `{ userId?: string }`
+- `req` — validated input fields accessed directly (`req.name`, `req.query`, etc.). For static resources, `req` is `{}`. For URI template resources, `req` contains the extracted template parameters.
+- `res` — output port: `{ send(result), progress(current, total?), ask(prompt) }`
 
 ### Handler Types
 
-1. **Tools** — Sync, async, or generator functions. Generators yield progress notifications. `ask` (second param) enables LLM sampling. `ctx` (third param) carries per-request context including `ctx.userId`.
-2. **Resources** — Static URIs or URI templates with `{param}` placeholders. Params extracted via RFC 6570 Level 1. Template handlers receive `(params, ask, ctx)`.
-3. **Prompts** — Return string, `conversation()` result, or Message array. Receive `(args, ask, ctx)`.
+1. **Tools** — Sync or async functions. Receive `(mctx, req, res)`. Call `res.send(result)` to return the result. Call `res.progress(current, total?)` for progress reporting. Call `res.ask(prompt)` for LLM sampling (`null` if client does not support sampling).
+2. **Resources** — Static URIs or URI templates with `{param}` placeholders. Params extracted via RFC 6570 Level 1. All resource handlers receive `(mctx, req, res)`.
+3. **Prompts** — Call `res.send()` with a string, `conversation()` result, or Message array. Receive `(mctx, req, res)`.
 
-`McpContext` shape: `{ userId?: string, emit: EmitFunction, cancel: CancelFunction }`. `ctx.userId` is a stable, opaque identifier for the authenticated user extracted from the `X-Mctx-User-Id` HTTP header injected by the mctx dispatch worker. It is `undefined` for unauthenticated requests.
-
-### Channel Events
-
-`ctx.emit(content, options?)` and `ctx.cancel(eventId)` are available in all handler types (tools, resources, prompts) via the `ctx` parameter. Events are written as `X-Mctx-Event` response headers; the dispatch worker reads these headers and writes events to D1. No HTTP calls, env vars, or async coordination required.
-
-**Emit signature:**
-
-```javascript
-ctx.emit(content, options?)
-```
-
-**Parameters:**
-
-- `content` (string) — Display text for the event, non-empty, truncated to 500 characters
-- `options` (object, optional) — Event configuration
-  - `options.eventType` (string) — Custom event type identifier (default: `"channel"`), must match `[a-zA-Z0-9_]+`
-  - `options.meta` (object) — Key-value metadata; both keys and values must be strings and keys must match `[a-zA-Z0-9_]+`
-  - `options.deliverAt` (string) — ISO 8601 timestamp for scheduled delivery; omit for immediate delivery
-  - `options.key` (string) — Idempotency/correlation key for deduplication and cancellation, must match `[a-zA-Z0-9_]+`
-
-**Returns:** `string` — the eventId (UUID) synchronously, or `""` on silent no-op
-
-**Cancel signature:**
-
-```javascript
-ctx.cancel(eventId);
-```
-
-- `eventId` (string) — the eventId returned by a previous `ctx.emit()` call
-- Appends an `X-Mctx-Cancel` response header; the dispatch worker cancels the matching pending event in D1
-- No-ops silently on invalid input
-
-**Behavior:**
-
-- No-ops silently on invalid input (wrong types, empty strings, invalid key/meta patterns)
-- Content automatically truncated to 500 characters
-- Any metadata key or value violation triggers a silent no-op (no event emitted)
-- `expiresAt` set automatically to 7 days from emit time; cannot be overridden
-- Synchronous and non-blocking — no async, no awaiting, no side effects on the tool response
-
-**Important:** Developers MUST sanitize user-generated content before passing to `ctx.emit()`. The emit function does not perform content sanitization beyond length truncation.
-
-**Example:**
-
-```javascript
-function myTool({ userId, scheduleFor }, _ask, ctx) {
-  // ... do work ...
-
-  // Sanitize user input before emitting
-  const sanitizedMessage = sanitize(userInput);
-
-  // Emit immediately and capture the eventId for possible cancellation
-  const eventId = ctx.emit(`User ${userId} completed task`, {
-    eventType: "task_complete",
-    meta: { user_id: userId, status: "success" },
-  });
-
-  // Emit a scheduled follow-up notification
-  const reminderEventId = ctx.emit("Reminder: review your results", {
-    eventType: "reminder",
-    deliverAt: scheduleFor,
-    key: `reminder_${userId}`,
-  });
-
-  // Cancel a previously scheduled event if needed
-  if (shouldCancel) {
-    ctx.cancel(reminderEventId);
-  }
-
-  return { success: true, eventId };
-}
-```
+`ModelContext` shape: `{ userId?: string }`. `mctx.userId` is a stable, opaque identifier for the authenticated user extracted from the `X-Mctx-User-Id` HTTP header injected by the mctx dispatch worker. It is `undefined` for unauthenticated requests.
 
 ### Core Modules
 
@@ -208,12 +140,10 @@ function myTool({ userId, scheduleFor }, _ask, ctx) {
 - **`types.js`** — `T` type system (T.string, T.number, T.boolean, T.array, T.object) compiles to JSON Schema
 - **`uri.js`** — RFC 6570 Level 1 URI template matching
 - **`conversation.js`** — Multi-message prompt builder (user.say, ai.say, attach, embed)
-- **`progress.js`** — Generator-based progress with 60s timeout, 10k yield limit
 - **`log.js`** — RFC 5424 logging (8 severity levels, internal buffer with FIFO eviction)
-- **`sampling.js`** — LLM-in-the-loop via `ask` function (client sampling capability)
+- **`sampling.js`** — LLM-in-the-loop via `res.ask(prompt)` (client sampling capability)
 - **`completion.js`** — Auto-completion from handlers, T.enum, or URI templates
 - **`security.js`** — Error sanitization, secret redaction, size limits, URI scheme validation
-- **`channel.js`** — Channel event emission (createEmit, createCancel, response header event emission)
 
 ---
 
@@ -252,7 +182,15 @@ PRs are **squash merged**. The PR title becomes the commit subject and the PR de
 
 ### Hooks and Automation
 
-No commit hooks (no husky, no lint-staged). All quality checks run in CI.
+A pre-push git hook runs quality checks before any push. It is stored in `.githooks/pre-push` (tracked in the repo) and runs:
+
+1. `npm run format:check` — Prettier formatting check
+2. `npm run lint` — ESLint across all workspaces
+3. `npm test` — Full test suite across all workspaces
+
+**Installation:** Run `npm install` (or `npm run prepare`) once after cloning. The `prepare` script in root `package.json` sets `core.hooksPath` to `.githooks` via `git config core.hooksPath .githooks`.
+
+There are no commit hooks (no husky, no lint-staged). The pre-push hook is the only local quality gate; all checks also run in CI.
 
 ---
 
@@ -270,10 +208,10 @@ No commit hooks (no husky, no lint-staged). All quality checks run in CI.
 npm test
 
 # Single package
-npm run test --workspace=@mctx-ai/app
+npm run test --workspace=@mctx-ai/mcp
 
 # With coverage report
-npm run test:coverage --workspace=@mctx-ai/app
+npm run test:coverage --workspace=@mctx-ai/mcp
 
 # Single test file
 npx vitest run test/uri.test.js
@@ -293,7 +231,7 @@ npx vitest run -t "validates URI templates correctly"
 1. **Trigger:** Push to `main` branch
 2. **CI gate:** Build, lint, test, and smoke test all three packages must pass first
 3. **Release:** `multi-semantic-release` analyzes commits, bumps versions, publishes to npm, creates GitHub releases
-4. **Post-publish check:** Waits 30s then runs `npm install @mctx-ai/app@latest --dry-run` to verify npm propagation
+4. **Post-publish check:** Waits 30s then runs `npm install @mctx-ai/mcp@latest --dry-run` to verify npm propagation
 
 **Concurrency:** Only one release runs at a time (`concurrency: { group: release, cancel-in-progress: false }`).
 
@@ -337,7 +275,7 @@ Trigger: push/PR to `main`. Four jobs:
 1. **`lint`** — ESLint, Prettier format check, TypeScript type check (`tsc --noEmit`), workspace validation
 2. **`test`** — Matrix: Node `22.x` × ubuntu/windows/macos (fail-fast disabled). Coverage uploaded as artifact for ubuntu (retained 7 days)
 3. **`security`** — `npm audit --audit-level=high --omit=dev` (dev deps excluded) + license check (`license-checker`, fails on GPL/AGPL)
-4. **`scaffold`** — Builds packages, runs `create-mctx-app` to generate a test project, validates generated `package.json` fields
+4. **`scaffold`** — Builds packages, runs `create-mctx-server` to generate a test project, validates generated `package.json` fields
 
 ### `release.yml` — Automated Release
 

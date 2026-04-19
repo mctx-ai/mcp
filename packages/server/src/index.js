@@ -1,5 +1,5 @@
 /**
- * @mctx-ai/app
+ * @mctx-ai/mcp
  *
  * Build MCP servers with an Express-like API - no protocol knowledge required.
  *
@@ -14,6 +14,4 @@ export { T, buildInputSchema } from "./types.js";
 
 // Advanced features
 export { conversation } from "./conversation.js";
-export { createProgress, PROGRESS_DEFAULTS } from "./progress.js";
 export { log, getLogBuffer, clearLogBuffer } from "./log.js";
-export { createEmit, createCancel, META_KEY_PATTERN } from "./channel.js";

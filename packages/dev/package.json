@@ -1,21 +1,22 @@
 {
   "name": "@mctx-ai/dev",
-  "version": "1.0.0",
-  "description": "Local development server for @mctx-ai/app with hot reload",
+  "version": "2.0.0",
+  "description": "Dev server with hot reload for mctx MCP servers",
   "type": "module",
   "main": "./src/cli.js",
   "bin": {
     "mctx-dev": "./src/cli.js"
   },
   "exports": {
-    ".": "./src/cli.js"
+    ".": "./src/server.js",
+    "./cli": "./src/cli.js"
   },
   "files": [
     "src"
   ],
   "scripts": {
     "test": "node --test --test-force-exit",
-    "lint": "echo 'Linting not configured yet'"
+    "lint": "eslint src/ test/"
   },
   "keywords": [
     "mcp",
@@ -43,6 +44,6 @@
     "provenance": true
   },
   "peerDependencies": {
-    "@mctx-ai/app": "^1.0.0"
+    "@mctx-ai/mcp": "^2.0.0"
   }
 }

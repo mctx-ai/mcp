@@ -23,12 +23,13 @@ describe("full server integration", () => {
     });
 
     // Register tool
-    const calculate = ({ operation, a, b }) => {
+    const calculate = (_mctx, { operation, a, b }, res) => {
       switch (operation) {
         case "add":
-          return a + b;
+          res.send(a + b);
+          break;
         default:
-          return 0;
+          res.send(0);
       }
     };
     calculate.input = {
@@ -39,11 +40,15 @@ describe("full server integration", () => {
     app.tool("calculate", calculate);
 
     // Register resource
-    const docs = () => "Calculator documentation";
+    const docs = (_mctx, _req, res) => {
+      res.send("Calculator documentation");
+    };
     app.resource("https://example.com/docs", docs);
 
     // Register prompt
-    const help = () => "How to use the calculator";
+    const help = (_mctx, _req, res) => {
+      res.send("How to use the calculator");
+    };
     help.input = {};
     app.prompt("help", help);
 
@@ -67,74 +72,30 @@ describe("full server integration", () => {
     expect(initData.result.capabilities.resources).toBeDefined();
     expect(initData.result.capabilities.prompts).toBeDefined();
     expect(initData.result.capabilities.logging).toBeDefined();
-    expect(initData.result.serverInfo.name).toBe("@mctx-ai/app");
+    expect(initData.result.serverInfo.name).toBe("@mctx-ai/mcp");
     expect(initData.result.instructions).toBe(
       "A comprehensive test server for calculator operations",
     );
-  });
-
-  it("includes channels capability in initialize response (always-on, header-based)", async () => {
-    const app = createServer();
-
-    const initRequest = createRequest({
-      jsonrpc: "2.0",
-      id: 0,
-      method: "initialize",
-      params: {
-        protocolVersion: "2025-11-25",
-        capabilities: {},
-        clientInfo: { name: "test-client", version: "1.0" },
-      },
-    });
-
-    const env = {
-      MCTX_EVENTS_ENDPOINT: "https://events.example.com",
-      MCTX_SERVER_ID: "server-123",
-      MCTX_EVENTS_SECRET: "a".repeat(32),
-    };
-    const initResponse = await app.fetch(initRequest, env);
-    const initData = await initResponse.json();
-
-    expect(initData.result.capabilities.channels).toBeDefined();
-    expect(initData.result.capabilities.logging).toBeDefined();
-  });
-
-  it("always advertises channels capability in initialize response (header-based, no env vars needed)", async () => {
-    const app = createServer();
-
-    const initRequest = createRequest({
-      jsonrpc: "2.0",
-      id: 0,
-      method: "initialize",
-      params: {
-        protocolVersion: "2025-11-25",
-        capabilities: {},
-        clientInfo: { name: "test-client", version: "1.0" },
-      },
-    });
-
-    // No env argument — channels are always advertised (header-based, no env vars needed)
-    const initResponse = await app.fetch(initRequest);
-    const initData = await initResponse.json();
-
-    expect(initData.result.capabilities.channels).toBeDefined();
-    expect(initData.result.capabilities.logging).toBeDefined();
   });
 
   it("creates server with tools, resources, and prompts", async () => {
     const app = createServer();
 
     // Register tool
-    const calculate = ({ operation, a, b }) => {
+    const calculate = (_mctx, { operation, a, b }, res) => {
       switch (operation) {
         case "add":
-          return a + b;
+          res.send(a + b);
+          break;
         case "subtract":
-          return a - b;
+          res.send(a - b);
+          break;
         case "multiply":
-          return a * b;
+          res.send(a * b);
+          break;
         case "divide":
-          return a / b;
+          res.send(a / b);
+          break;
         default:
           throw new Error("Unknown operation");
       }
@@ -151,31 +112,37 @@ describe("full server integration", () => {
     app.tool("calculate", calculate);
 
     // Register static resource (with canonicalized URI - single slash after scheme)
-    const docsResource = () => "API Documentation for Calculator";
+    const docsResource = (_mctx, _req, res) => {
+      res.send("API Documentation for Calculator");
+    };
     docsResource.description = "Calculator API documentation";
     docsResource.mimeType = "text/plain";
     app.resource("https:/example.com/docs/calculator", docsResource);
 
     // Register template resource (with canonicalized URI - single slash after scheme)
-    const historyResource = ({ operationId }) => {
-      return JSON.stringify({
-        id: operationId,
-        operation: "add",
-        result: 42,
-        timestamp: "2024-01-01T00:00:00Z",
-      });
+    const historyResource = (_mctx, { operationId }, res) => {
+      res.send(
+        JSON.stringify({
+          id: operationId,
+          operation: "add",
+          result: 42,
+          timestamp: "2024-01-01T00:00:00Z",
+        }),
+      );
     };
     historyResource.description = "Operation history";
     historyResource.mimeType = "application/json";
     app.resource("https:/example.com/history/{operationId}", historyResource);
 
     // Register prompt
-    const mathPrompt = ({ problem }) => {
-      return conversation(({ user, ai }) => [
-        user.say(`Solve this math problem: ${problem}`),
-        ai.say("I can help with that. What operation do you need?"),
-        user.say("Use the calculate tool"),
-      ]);
+    const mathPrompt = (_mctx, { problem }, res) => {
+      res.send(
+        conversation(({ user, ai }) => [
+          user.say(`Solve this math problem: ${problem}`),
+          ai.say("I can help with that. What operation do you need?"),
+          user.say("Use the calculate tool"),
+        ]),
+      );
     };
     mathPrompt.description = "Math problem solving prompt";
     mathPrompt.input = {
@@ -298,7 +265,7 @@ describe("error handling end-to-end", () => {
   it("handles tool errors with sanitization", async () => {
     const app = createServer();
 
-    const failingTool = () => {
+    const failingTool = (_mctx, _req, _res) => {
       throw new Error("Database connection failed with AKIAIOSFODNN7EXAMPLE");
     };
     failingTool.input = {};
@@ -325,7 +292,7 @@ describe("error handling end-to-end", () => {
   it("handles resource errors with sanitization", async () => {
     const app = createServer();
 
-    const failingResource = () => {
+    const failingResource = (_mctx, _req, _res) => {
       throw new Error("Failed to fetch from postgres://user:password@localhost/db");
     };
     // Register with canonicalized URI (single slash after scheme)
@@ -351,7 +318,7 @@ describe("error handling end-to-end", () => {
   it("handles prompt errors with sanitization", async () => {
     const app = createServer();
 
-    const failingPrompt = () => {
+    const failingPrompt = (_mctx, _req, _res) => {
       throw new Error("Template error with token Bearer sk_live_123456");
     };
     failingPrompt.input = {};
@@ -380,7 +347,9 @@ describe("JSON-RPC protocol compliance", () => {
   it("returns correct JSON-RPC 2.0 response format", async () => {
     const app = createServer();
 
-    const tool = () => "success";
+    const tool = (_mctx, _req, res) => {
+      res.send("success");
+    };
     tool.input = {};
     app.tool("test", tool);
 
@@ -466,9 +435,9 @@ describe("security integration", () => {
   it("prevents prototype pollution in tool arguments", async () => {
     const app = createServer();
 
-    const tool = (args) => {
+    const tool = (_mctx, args, res) => {
       // Check if __proto__ key is present in sanitized args
-      return { hasPollution: Object.hasOwnProperty.call(args, "__proto__") };
+      res.send({ hasPollution: Object.hasOwnProperty.call(args, "__proto__") });
     };
     tool.input = {};
     app.tool("test", tool);
@@ -530,7 +499,9 @@ describe("security integration", () => {
   it("includes HTTP security headers in all responses", async () => {
     const app = createServer();
 
-    const tool = () => "success";
+    const tool = (_mctx, _req, res) => {
+      res.send("success");
+    };
     tool.input = {};
     app.tool("test", tool);
 
@@ -604,111 +575,18 @@ describe("security integration", () => {
   });
 });
 
-describe("channel events end-to-end", () => {
-  it("tool handler calling ctx.emit() produces X-Mctx-Event header on response", async () => {
-    const app = createServer();
-
-    const emitTool = (_args, _ask, ctx) => {
-      ctx.emit("Task started", { eventType: "task_status", meta: { step: "begin" } });
-      return "done";
-    };
-    emitTool.input = {};
-    app.tool("emit-tool", emitTool);
-
-    const request = createRequest({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "tools/call",
-      params: { name: "emit-tool", arguments: {} },
-    });
-
-    const response = await app.fetch(request);
-
-    expect(response.status).toBe(200);
-    const headerValue = response.headers.get("X-Mctx-Event");
-    expect(headerValue).not.toBeNull();
-    const event = JSON.parse(headerValue);
-    expect(event).toMatchObject({
-      eventId: expect.any(String),
-      eventType: "task_status",
-      content: "Task started",
-      metadata: { step: "begin" },
-      expiresAt: expect.any(String),
-    });
-  });
-
-  it("tool handler calling ctx.cancel() produces X-Mctx-Cancel header on response", async () => {
-    const app = createServer();
-
-    const cancelTool = (_args, _ask, ctx) => {
-      const eventId = ctx.emit("Scheduled task", { deliverAt: "2026-04-01T12:00:00Z" });
-      ctx.cancel(eventId);
-      return "cancelled";
-    };
-    cancelTool.input = {};
-    app.tool("cancel-tool", cancelTool);
-
-    const request = createRequest({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "tools/call",
-      params: { name: "cancel-tool", arguments: {} },
-    });
-
-    const response = await app.fetch(request);
-
-    expect(response.status).toBe(200);
-    const cancelHeader = response.headers.get("X-Mctx-Cancel");
-    expect(cancelHeader).not.toBeNull();
-    expect(typeof cancelHeader).toBe("string");
-    expect(cancelHeader.length).toBeGreaterThan(0);
-
-    // The cancelled eventId matches the one emitted
-    const eventHeader = response.headers.get("X-Mctx-Event");
-    const event = JSON.parse(eventHeader);
-    expect(cancelHeader).toBe(event.eventId);
-  });
-
-  it("X-Mctx-Event headers survive on error response when tool throws after emitting", async () => {
-    const app = createServer();
-
-    const throwAfterEmitTool = (_args, _ask, ctx) => {
-      ctx.emit("Before failure", { eventType: "warning" });
-      throw new Error("Tool failed after emit");
-    };
-    throwAfterEmitTool.input = {};
-    app.tool("throw-after-emit", throwAfterEmitTool);
-
-    const request = createRequest({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "tools/call",
-      params: { name: "throw-after-emit", arguments: {} },
-    });
-
-    const response = await app.fetch(request);
-    const data = await response.json();
-
-    // Tool errors are returned as isError content (not JSON-RPC error), status 200
-    expect(data.result.isError).toBe(true);
-
-    // X-Mctx-Event header must survive even though the tool threw
-    const headerValue = response.headers.get("X-Mctx-Event");
-    expect(headerValue).not.toBeNull();
-    const event = JSON.parse(headerValue);
-    expect(event.eventType).toBe("warning");
-    expect(event.content).toBe("Before failure");
-  });
-});
-
 describe("method chaining", () => {
   it("allows chaining tool registrations", () => {
     const app = createServer();
 
-    const tool1 = () => "result1";
+    const tool1 = (_mctx, _req, res) => {
+      res.send("result1");
+    };
     tool1.input = {};
 
-    const tool2 = () => "result2";
+    const tool2 = (_mctx, _req, res) => {
+      res.send("result2");
+    };
     tool2.input = {};
 
     const result = app.tool("tool1", tool1).tool("tool2", tool2);
@@ -719,8 +597,12 @@ describe("method chaining", () => {
   it("allows chaining resource registrations", () => {
     const app = createServer();
 
-    const resource1 = () => "content1";
-    const resource2 = () => "content2";
+    const resource1 = (_mctx, _req, res) => {
+      res.send("content1");
+    };
+    const resource2 = (_mctx, _req, res) => {
+      res.send("content2");
+    };
 
     const result = app
       .resource("https://example.com/1", resource1)
@@ -732,10 +614,14 @@ describe("method chaining", () => {
   it("allows chaining prompt registrations", () => {
     const app = createServer();
 
-    const prompt1 = () => "prompt1";
+    const prompt1 = (_mctx, _req, res) => {
+      res.send("prompt1");
+    };
     prompt1.input = {};
 
-    const prompt2 = () => "prompt2";
+    const prompt2 = (_mctx, _req, res) => {
+      res.send("prompt2");
+    };
     prompt2.input = {};
 
     const result = app.prompt("prompt1", prompt1).prompt("prompt2", prompt2);
@@ -746,11 +632,17 @@ describe("method chaining", () => {
   it("allows mixed chaining", () => {
     const app = createServer();
 
-    const tool = () => "result";
+    const tool = (_mctx, _req, res) => {
+      res.send("result");
+    };
     tool.input = {};
 
-    const resource = () => "content";
-    const prompt = () => "message";
+    const resource = (_mctx, _req, res) => {
+      res.send("content");
+    };
+    const prompt = (_mctx, _req, res) => {
+      res.send("message");
+    };
     prompt.input = {};
 
     const result = app

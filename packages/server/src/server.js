@@ -19,7 +19,7 @@ import {
 } from "./security.js";
 import { createAsk } from "./sampling.js";
 
-const version = "2.0.1";
+const version = "2.0.2";
 
 /**
  * HTTP Security Headers

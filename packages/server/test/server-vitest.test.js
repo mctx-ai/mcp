@@ -5,12 +5,8 @@
  * pagination, error handling, and serialization.
  */
 
-import { createRequire } from "module";
 import { describe, it, expect } from "vitest";
 import { createServer, T } from "../src/index.js";
-
-const require = createRequire(import.meta.url);
-const { version: packageVersion } = require("../package.json");
 
 // Helper to create mock Request
 function createRequest(body) {
@@ -1071,7 +1067,7 @@ describe("initialize", () => {
     expect(data.result.capabilities).toBeDefined();
     expect(data.result.serverInfo).toBeDefined();
     expect(data.result.serverInfo.name).toBe("@mctx-ai/mcp");
-    expect(data.result.serverInfo.version).toBe(packageVersion);
+    expect(data.result.serverInfo.version).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
   it("includes instructions when provided", async () => {

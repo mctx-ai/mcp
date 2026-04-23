@@ -272,13 +272,13 @@ Full deployment guide at [docs.mctx.ai](https://docs.mctx.ai).
 ## Links
 
 - [Documentation](https://docs.mctx.ai)
-- [Example Server](https://github.com/mctx-ai/example-app)
-- [GitHub Issues](https://github.com/mctx-ai/app/issues)
+- [Example Server](https://github.com/mctx-ai/example-mcp-server)
+- [GitHub Issues](https://github.com/mctx-ai/mcp/issues)
 - [Feedback](https://github.com/mctx-ai/feedback)
 
 ---
 
 <p align="center">
-  <a href="https://mctx.ai">mctx</a> · <a href="https://docs.mctx.ai">Docs</a> · <a href="https://github.com/mctx-ai/app">GitHub</a><br/>
+  <a href="https://mctx.ai">mctx</a> · <a href="https://docs.mctx.ai">Docs</a> · <a href="https://github.com/mctx-ai/mcp">GitHub</a><br/>
   MIT License
 </p>

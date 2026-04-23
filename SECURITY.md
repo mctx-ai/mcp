@@ -8,12 +8,12 @@ I take security seriously and appreciate your help protecting this project.
 
 The easiest and most secure way to report a vulnerability is using GitHub's built-in private reporting feature:
 
-1. Go to the [Security tab](https://github.com/mctx-ai/app/security) of this repository
+1. Go to the [Security tab](https://github.com/mctx-ai/mcp/security) of this repository
 2. Click **"Report a vulnerability"** button
 3. Fill out the form with vulnerability details
 4. Submit your report
 
-Alternatively, you can [report directly here](https://github.com/mctx-ai/app/security/advisories/new).
+Alternatively, you can [report directly here](https://github.com/mctx-ai/mcp/security/advisories/new).
 
 ### Fallback: Email
 

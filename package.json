@@ -1,5 +1,5 @@
 {
-  "name": "@mctx-ai/app-monorepo",
+  "name": "@mctx-ai/mcp-monorepo",
   "version": "0.1.0",
   "description": "mctx — The best way to Build an MCP Server",
   "private": true,

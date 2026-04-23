@@ -4,7 +4,7 @@
 
 # @mctx-ai/dev
 
-mctx — The best way to Build an MCP Server. Hot reload, request logging, and more — part of the mctx framework.
+Dev server with hot reload for [@mctx-ai/mcp](https://www.npmjs.com/package/@mctx-ai/mcp).
 
 [![npm version](https://img.shields.io/npm/v/@mctx-ai/dev)](https://www.npmjs.com/package/@mctx-ai/dev)
 
@@ -76,6 +76,6 @@ This package is the dev companion to [@mctx-ai/mcp](https://www.npmjs.com/packag
 ---
 
 <p align="center">
-  <a href="https://mctx.ai">mctx</a> · <a href="https://docs.mctx.ai">Docs</a> · <a href="https://github.com/mctx-ai/app">GitHub</a><br/>
+  <a href="https://mctx.ai">mctx</a> · <a href="https://docs.mctx.ai">Docs</a> · <a href="https://github.com/mctx-ai/mcp">GitHub</a><br/>
   MIT License
 </p>

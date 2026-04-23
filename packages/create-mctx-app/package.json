@@ -21,11 +21,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mctx-ai/app.git",
+    "url": "https://github.com/mctx-ai/mcp.git",
     "directory": "packages/create-mctx-app"
   },
   "bugs": {
-    "url": "https://github.com/mctx-ai/app/issues"
+    "url": "https://github.com/mctx-ai/mcp/issues"
   },
   "homepage": "https://docs.mctx.ai",
   "engines": {

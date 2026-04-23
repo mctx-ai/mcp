@@ -49,6 +49,6 @@ Connect your GitHub repo at [mctx.ai](https://mctx.ai) and deploy. Full deployme
 ---
 
 <p align="center">
-  <a href="https://mctx.ai">mctx</a> · <a href="https://docs.mctx.ai">Docs</a> · <a href="https://github.com/mctx-ai/app">GitHub</a><br/>
+  <a href="https://mctx.ai">mctx</a> · <a href="https://docs.mctx.ai">Docs</a> · <a href="https://github.com/mctx-ai/mcp">GitHub</a><br/>
   MIT License
 </p>

@@ -89,7 +89,7 @@ writeFileSync(join(projectName, ".npmrc"), npmrc);
 // Generate README.md
 const readme = `# ${projectName}
 
-An MCP server built with mctx — The best way to Build an MCP Server. See [@mctx-ai/mcp](https://github.com/mctx-ai/app) for the framework.
+An MCP server built with mctx — The best way to Build an MCP Server. See [@mctx-ai/mcp](https://github.com/mctx-ai/mcp) for the framework.
 
 ## Development
 

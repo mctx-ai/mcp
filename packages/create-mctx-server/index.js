@@ -155,8 +155,8 @@ This bundles your server into a single \`dist/index.js\` file ready for deployme
 
 ## Learn More
 
-- [Framework Docs](https://docs.mctx.ai/docs/building-apps/framework-getting-started)
-- [API Reference](https://docs.mctx.ai/docs/building-apps/framework-api-reference)
+- [Framework Docs](https://docs.mctx.ai/build/quickstart)
+- [API Reference](https://docs.mctx.ai/build/api-reference)
 - [MCP Specification](https://modelcontextprotocol.io)
 `;
 

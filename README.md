@@ -9,8 +9,10 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/@mctx-ai/app"><img src="https://img.shields.io/npm/v/@mctx-ai/app" alt="npm version"/></a>
   <a href="https://www.npmjs.com/package/@mctx-ai/app"><img src="https://img.shields.io/npm/l/@mctx-ai/app" alt="license"/></a>
-  <a href="https://github.com/mctx-ai/app/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/mctx-ai/app/ci.yml" alt="CI"/></a>
+  <a href="https://github.com/mctx-ai/mcp/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/mctx-ai/mcp/ci.yml" alt="CI"/></a>
 </p>
+
+MCP (Model Context Protocol) is the open standard AI assistants use to call external tools. Claude, ChatGPT, Cursor, and other clients speak it. Build an MCP server once, and it's accessible from every MCP-compatible AI.
 
 ```bash
 npm install @mctx-ai/app
@@ -262,8 +264,8 @@ See [docs.mctx.ai](https://docs.mctx.ai) for detailed guidance on all discoverab
 ## Links
 
 - [Documentation](https://docs.mctx.ai)
-- [Example App](https://github.com/mctx-ai/example-app)
-- [GitHub Issues](https://github.com/mctx-ai/app/issues)
+- [Example App](https://github.com/mctx-ai/example-mcp-server)
+- [GitHub Issues](https://github.com/mctx-ai/mcp/issues)
 
 ---
 

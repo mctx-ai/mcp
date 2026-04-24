@@ -9,10 +9,12 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/@mctx-ai/mcp"><img src="https://img.shields.io/npm/v/@mctx-ai/mcp" alt="npm version"/></a>
   <a href="https://www.npmjs.com/package/@mctx-ai/mcp"><img src="https://img.shields.io/npm/l/@mctx-ai/mcp" alt="license"/></a>
-  <a href="https://github.com/mctx-ai/app/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/mctx-ai/app/ci.yml" alt="CI"/></a>
+  <a href="https://github.com/mctx-ai/mcp/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/mctx-ai/mcp/ci.yml" alt="CI"/></a>
 </p>
 
 `@mctx-ai/mcp` is the best way to Build an MCP Server. Register tools, resources, and prompts — the framework handles protocol negotiation, input validation, error sanitization, and CORS. You write the business logic.
+
+MCP (Model Context Protocol) is the open standard AI assistants use to call external tools. Claude, ChatGPT, Cursor, and other clients speak it. Build an MCP server once, and it's accessible from every MCP-compatible AI.
 
 ---
 
@@ -260,14 +262,14 @@ Full deployment guide at [docs.mctx.ai](https://docs.mctx.ai).
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) and [GitHub Issues](https://github.com/mctx-ai/app/issues).
+See [CONTRIBUTING.md](./CONTRIBUTING.md) and [GitHub Issues](https://github.com/mctx-ai/mcp/issues).
 
 ---
 
 ## Links
 
 - [Documentation](https://docs.mctx.ai)
-- [Example Server](https://github.com/new?template_name=example-app&template_owner=mctx-ai)
+- [Example Server](https://github.com/new?template_name=example-mcp-server&template_owner=mctx-ai)
 - [npm: @mctx-ai/mcp](https://www.npmjs.com/package/@mctx-ai/mcp)
 
 ---
